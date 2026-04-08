@@ -1,0 +1,8 @@
+{
+  "name": "buildin",
+  "version": "2.1.0",
+  "description": "Buildin.ai wiki — UI API integration (login, read, write, search)",
+  "author": {
+    "name": "AI Hub Contributors"
+  }
+}

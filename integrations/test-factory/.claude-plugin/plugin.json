@@ -1,0 +1,6 @@
+{
+  "name": "test-factory",
+  "version": "1.0.0",
+  "description": "AI test generation with Ralph-loop quality gate: coder → reviewer → iterate",
+  "author": { "name": "AI Hub Contributors" }
+}

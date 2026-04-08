@@ -1,0 +1,1 @@
+../../../integrations/test-factory/commands/ai-test.md

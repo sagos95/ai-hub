@@ -1,0 +1,1 @@
+../../../integrations/discovery/commands/discovery.md

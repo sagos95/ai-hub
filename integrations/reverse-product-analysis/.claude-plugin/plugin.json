@@ -1,0 +1,6 @@
+{
+  "name": "reverse-product-analysis",
+  "version": "1.0.0",
+  "description": "Reverse engineering service functionality from source code",
+  "author": { "name": "AI Hub Contributors" }
+}

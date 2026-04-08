@@ -1,0 +1,8 @@
+{
+  "name": "discovery",
+  "version": "0.1.0",
+  "description": "Product Discovery workflow automation for PM teams — 9 phases from problem framing to go/no-go decision, 12 sub-agents",
+  "author": {
+    "name": "AI Hub Contributors"
+  }
+}

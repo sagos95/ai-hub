@@ -1,0 +1,153 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "ai-hub",
+  "description": "AI skills — integrations with Kaiten, Time, Buildin, Genie, Holst + automation workflows (spike research, product discovery, testing, dev diagnostics)",
+  "owner": {
+    "name": "AI Hub Contributors"
+  },
+  "plugins": [
+    {
+      "name": "spike",
+      "description": "Spike research workflow — 3 specialized agents (explorer, researcher, architect) produce a structured report from a Kaiten card",
+      "version": "2.0.0",
+      "author": {
+        "name": "AI Hub Contributors"
+      },
+      "source": "./integrations/spike",
+      "category": "automation",
+      "homepage": "https://github.com/sagos95/ai-hub/tree/main/integrations/spike"
+    },
+    {
+      "name": "discovery",
+      "description": "Full product discovery cycle — from problem to go/no-go decision (9 phases, 12 sub-agents)",
+      "version": "0.1.0",
+      "author": {
+        "name": "AI Hub Contributors"
+      },
+      "source": "./integrations/discovery",
+      "category": "automation",
+      "homepage": "https://github.com/sagos95/ai-hub/tree/main/integrations/discovery"
+    },
+    {
+      "name": "kaiten",
+      "description": "Kaiten board automation tools — cards, columns, properties, comments",
+      "version": "1.0.0",
+      "author": {
+        "name": "AI Hub Contributors"
+      },
+      "source": "./integrations/kaiten",
+      "category": "productivity",
+      "homepage": "https://github.com/sagos95/ai-hub/tree/main/integrations/kaiten"
+    },
+    {
+      "name": "time",
+      "description": "Time (Mattermost) integration — read/write channels, messages, threads with dual auth (bot + personal)",
+      "version": "1.0.0",
+      "author": {
+        "name": "AI Hub Contributors"
+      },
+      "source": "./integrations/time",
+      "category": "productivity",
+      "homepage": "https://github.com/sagos95/ai-hub/tree/main/integrations/time"
+    },
+    {
+      "name": "buildin",
+      "description": "Buildin.ai wiki page management — create and update documentation pages",
+      "version": "2.1.0",
+      "author": {
+        "name": "AI Hub Contributors"
+      },
+      "source": "./integrations/buildin",
+      "category": "productivity",
+      "homepage": "https://github.com/sagos95/ai-hub/tree/main/integrations/buildin"
+    },
+    {
+      "name": "holst",
+      "description": "Holst.so board data export — frames, stickers, texts via Chrome DevTools",
+      "version": "1.0.0",
+      "author": {
+        "name": "AI Hub Contributors"
+      },
+      "source": "./integrations/holst",
+      "category": "productivity",
+      "homepage": "https://github.com/sagos95/ai-hub/tree/main/integrations/holst"
+    },
+    {
+      "name": "genie",
+      "description": "Genie API integration for AI-powered search and data retrieval",
+      "version": "1.0.0",
+      "author": {
+        "name": "AI Hub Contributors"
+      },
+      "source": "./integrations/genie",
+      "category": "productivity",
+      "homepage": "https://github.com/sagos95/ai-hub/tree/main/integrations/genie"
+    },
+    {
+      "name": "reverse-product-analysis",
+      "description": "Full service functionality inventory from source code — 9 agents in 4 waves for reverse engineering",
+      "version": "1.0.0",
+      "author": {
+        "name": "AI Hub Contributors"
+      },
+      "source": "./integrations/reverse-product-analysis",
+      "category": "development",
+      "homepage": "https://github.com/sagos95/ai-hub/tree/main/integrations/reverse-product-analysis"
+    },
+    {
+      "name": "test-factory",
+      "description": "AI test generation with Ralph-loop quality gate — coder agent writes tests, reviewer agent validates",
+      "version": "1.0.0",
+      "author": {
+        "name": "AI Hub Contributors"
+      },
+      "source": "./integrations/test-factory",
+      "category": "development",
+      "homepage": "https://github.com/sagos95/ai-hub/tree/main/integrations/test-factory"
+    },
+    {
+      "name": "development",
+      "description": "Dev environment investigation — pods, logs, Kafka, services health diagnostics",
+      "version": "1.0.0",
+      "author": {
+        "name": "AI Hub Contributors"
+      },
+      "source": "./integrations/development",
+      "category": "development",
+      "homepage": "https://github.com/sagos95/ai-hub/tree/main/integrations/development"
+    },
+    {
+      "name": "hub-meta",
+      "description": "AI Hub meta-tools — setup wizard, create new commands, run session retrospectives",
+      "version": "1.1.0",
+      "author": {
+        "name": "AI Hub Contributors"
+      },
+      "source": "./integrations/hub-meta",
+      "category": "development",
+      "homepage": "https://github.com/sagos95/ai-hub/tree/main/integrations/hub-meta"
+    },
+    {
+      "name": "presentations",
+      "description": "HTML presentation generator — visually striking slides with auto-style discovery from design references",
+      "version": "1.0.0",
+      "author": {
+        "name": "AI Hub Contributors"
+      },
+      "source": "./integrations/presentations",
+      "category": "productivity",
+      "homepage": "https://github.com/sagos95/ai-hub/tree/main/integrations/presentations"
+    },
+    {
+      "name": "code-review",
+      "description": "Autonomous C#/.NET code review — fail-fast pipeline with mechanical checks + AI sub-agents (performance, architecture, correctness, UI/Blazor)",
+      "version": "1.0.0",
+      "author": {
+        "name": "AI Hub Contributors"
+      },
+      "source": "./integrations/code-review",
+      "category": "development",
+      "homepage": "https://github.com/sagos95/ai-hub/tree/main/integrations/code-review"
+    }
+  ]
+}

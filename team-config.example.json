@@ -1,0 +1,45 @@
+{
+  "team": {
+    "name": "YOUR_TEAM",
+    "display_name": "Your Team Display Name"
+  },
+  "kaiten": {
+    "space_id": null,
+    "property_id_affected_services": null,
+    "boards": {
+      "sprint": {
+        "id": null,
+        "name": "Sprint board name",
+        "columns": {
+          "sprint_backlog": null,
+          "in_progress": null,
+          "doing": null,
+          "on_hold": null,
+          "done": null
+        }
+      },
+      "business_backlog": {
+        "id": null,
+        "name": "Business backlog board name",
+        "discovery_column_id": null,
+        "business_ready_column": null,
+        "ready_to_dev_column": null
+      }
+    },
+    "card_types": {
+      "task": null,
+      "spike": null,
+      "bug": null,
+      "techdebt": null
+    }
+  },
+  "time": {
+    "channels": {
+      "dev": "your-team-dev",
+      "general": "your-team-general"
+    }
+  },
+  "buildin": {
+    "bookmarks": {}
+  }
+}

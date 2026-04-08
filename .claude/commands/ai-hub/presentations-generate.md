@@ -1,0 +1,1 @@
+../../../integrations/presentations/commands/presentations-generate.md

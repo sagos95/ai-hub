@@ -1,0 +1,1 @@
+../../../integrations/reverse-product-analysis/commands/reverse-analysis.md

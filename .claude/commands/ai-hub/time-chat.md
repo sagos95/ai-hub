@@ -1,0 +1,1 @@
+../../../integrations/time/commands/time-chat.md

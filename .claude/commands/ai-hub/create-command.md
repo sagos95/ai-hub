@@ -1,0 +1,1 @@
+../../../integrations/hub-meta/commands/create-command.md

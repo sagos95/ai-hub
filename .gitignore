@@ -1,0 +1,43 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Environment (all .env variants)
+.env
+.env.*
+!.env.example
+!.env.*.example
+.env.local
+
+# Tokens and secrets
+.token
+*.token
+.credentials
+.secrets
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Time local data (machine-specific)
+integrations/time/.time-signature
+integrations/time/.cache/
+
+# Buildin local cache
+integrations/buildin/.cache/
+
+# Node.js
+node_modules/
+
+# Playwright MCP
+.playwright-mcp/
+
+# Large external repositories
+Temp/
