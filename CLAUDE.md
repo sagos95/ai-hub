@@ -18,10 +18,8 @@ AI Hub — набор интеграций и скиллов для Claude Code,
 │   ├── reverse-product-analysis/ # Реверс-анализ по коду
 │   ├── holst/                    # Инструменты для графических досок
 │   ├── hub-meta/                 # create-command, skill-retro
-│   ├── code-review/              # Code review workflow
-│   ├── presentations/            # Генерация презентаций
-│   └── development/              # Dev-утилиты (env, диагностика)
-└── .env                    # Токены (не в git)
+│   └── code-review/              # Code review workflow
+└── .env                          # Токены (не в git)
 ```
 
 ### Slash-команды и симлинки
@@ -44,9 +42,6 @@ Claude Code CLI ищет slash-команды в `.claude/commands/`. Коман
   time-login.md                  → ../../../integrations/time/commands/time-login.md
   code-review.md                 → ../../../integrations/code-review/commands/code-review.md
   retro.md                       → ../../../integrations/hub-meta/commands/retro.md
-  dev-investigate.md             → ../../../integrations/development/commands/dev-investigate.md
-  prod-investigate.md            → ../../../integrations/development/commands/prod-investigate.md
-  presentations-generate.md      → ../../../integrations/presentations/commands/presentations-generate.md
 ```
 
 **Почему симлинки, а не копии:**
