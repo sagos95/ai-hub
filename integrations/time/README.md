@@ -147,18 +147,18 @@ TIME_AS=me ./time-channels.sh my-channels <team_id>
 /ai-hub:time-chat запости changelog в канал releases
 ```
 
-## Подпись сообщений
+## Постфикс сообщений
 
-Ко всем исходящим сообщениям (action `send`) автоматически добавляется подпись-постфикс.
+По умолчанию исходящие сообщения отправляются **без постфикса**. При первом логине (`/ai-hub:time-login`) предлагается настроить опциональный постфикс.
 
-**По умолчанию:** ` :ai-watermark-1::ai-watermark-2::ai-watermark-3:`
-
-**Кастомизация:** создай файл `integrations/time/.time-signature` с нужным содержимым:
+**Ручная настройка:** создай файл `integrations/time/.time-signature` с нужным содержимым:
 ```bash
 echo ' 🤖 sent via AI Hub' > integrations/time/.time-signature
 ```
 
-Файл `.time-signature` — локальный, добавлен в `.gitignore`. Чтобы вернуть дефолтную подпись — удали файл.
+**Убрать постфикс:** удали файл `.time-signature`.
+
+Файл `.time-signature` — локальный, добавлен в `.gitignore`.
 
 ## Авторизация: детали
 

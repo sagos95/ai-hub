@@ -8,7 +8,7 @@ TIME="$SCRIPT_DIR/time.sh"
 SIGNATURE_FILE="$SCRIPT_DIR/../.time-signature"
 
 # Load message signature (appended to every outgoing message)
-TIME_SIGNATURE=" :ai-watermark-1::ai-watermark-2::ai-watermark-3:"
+TIME_SIGNATURE=""
 if [[ -f "$SIGNATURE_FILE" ]]; then
     TIME_SIGNATURE=$(cat "$SIGNATURE_FILE")
 fi
