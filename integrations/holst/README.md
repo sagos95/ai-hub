@@ -217,7 +217,66 @@ async () => {
 }
 ```
 
-## Ограничения
+## Write API (holst-write-api.js)
+
+Помимо чтения, можно **редактировать текст стикеров** и **создавать фреймы/стикеры** через write API.
+
+### Как это работает
+
+WASM-движок Holst игнорирует внешние Yjs-мутации для текстового контента. Но когда пользователь дабл-кликает стикер, открывается **Slate.js** редактор, привязанный к live Y.Doc через `editor.sharedRoot`. Мы можем:
+
+1. Получить Slate editor из React fiber tree
+2. Отключить его от текущего документа (`editor.disconnect()`)
+3. Подключить к любому другому XmlText (`editor.sharedRoot = xmlText; editor.connect()`)
+4. Записать текст через `editor.insertText()` + `editor.flushLocalChanges()`
+5. WASM-движок принимает изменения через collaborative binding
+
+### Пошаговое использование
+
+```javascript
+// 1. Пользователь дабл-кликает любой стикер на доске
+
+// 2. Инициализировать write API (захватывает Slate editor и live Y.Doc)
+holstWrite.init()
+
+// 3. Записать текст в любой стикер по его documentId
+holstWrite.setText('document-uuid', 'Новый текст')
+
+// 4. Или по ID объекта-стикера
+holstWrite.setStickerText('sticker-uuid', 'Новый текст')
+
+// 5. Батч-обновление нескольких стикеров
+holstWrite.setMultipleTexts([
+  { documentId: 'doc-1', text: 'Текст 1' },
+  { stickerId: 'obj-2', text: 'Текст 2' },
+])
+
+// 6. Создать фрейм
+holstWrite.createFrame({
+  label: 'Новый фрейм',
+  position: { x: 0, y: 0 },
+  width: 5000, height: 4000
+})
+
+// 7. Создать стикер с текстом
+holstWrite.createSticker({
+  position: { x: 100, y: 100 },
+  color: 'yellow4',
+  parentId: 'frame-uuid',
+  text: 'Привет!'
+})
+
+// 8. Восстановить editor в исходное состояние
+holstWrite.restore()
+```
+
+### Ограничения write API
+
+- **Требует активный Slate editor** — пользователь должен дабл-кликнуть стикер перед использованием
+- **Создание фреймов/стикеров** работает через Yjs transact (без editor), но текст внутри них требует Slate
+- **После перезагрузки страницы** нужно заново инжектить скрипты и инициализировать
+
+## Общие ограничения
 
 - **Нет публичного API** — всё работает через внутренние сервисы Holst в браузере
 - **Требуется авторизация** — MCP-браузер должен быть залогинен

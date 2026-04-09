@@ -1,7 +1,7 @@
 {
   "name": "holst",
-  "version": "1.0.0",
-  "description": "Holst.so board data export via Chrome DevTools",
+  "version": "2.0.0",
+  "description": "Holst.so board read + write via Chrome DevTools (Slate/Yjs bridge)",
   "author": {
     "name": "AI Hub Contributors"
   }
