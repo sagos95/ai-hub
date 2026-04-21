@@ -84,9 +84,41 @@ case "$action" in
         "$TIME" "${AS_ARGS[@]}" GET "/api/v4/users/${USER_ID}"
         ;;
 
+    my-posts)
+        # List posts authored by current user in a channel (auto-paginates)
+        # Usage: ./time-messages.sh my-posts <channel_id> [max_posts]
+        CHANNEL_ID="${2:?Channel ID required}"
+        MAX_POSTS="${3:-800}"
+        PER_PAGE=200
+
+        MY_ID=$("$TIME" "${AS_ARGS[@]}" GET "/api/v4/users/me" | jq -r '.id')
+        if [[ -z "$MY_ID" || "$MY_ID" == "null" ]]; then
+            echo "Failed to resolve current user id" >&2
+            exit 1
+        fi
+
+        page=0
+        scanned=0
+        results="[]"
+        while (( scanned < MAX_POSTS )); do
+            batch=$("$TIME" "${AS_ARGS[@]}" GET "/api/v4/channels/${CHANNEL_ID}/posts?page=${page}&per_page=${PER_PAGE}")
+            count=$(echo "$batch" | jq '.order | length')
+            if [[ "$count" == "0" ]]; then break; fi
+
+            mine=$(echo "$batch" | jq --arg me "$MY_ID" '[.order[] as $id | .posts[$id] | select(.user_id == $me) | {id, create_at, root_id, message}]')
+            results=$(jq -s '.[0] + .[1]' <(echo "$results") <(echo "$mine"))
+
+            scanned=$(( scanned + count ))
+            page=$(( page + 1 ))
+            if (( count < PER_PAGE )); then break; fi
+        done
+
+        echo "$results" | jq 'sort_by(.create_at)'
+        ;;
+
     *)
         echo "Usage: $0 [--as bot|me] <action> [args...]" >&2
-        echo "Actions: posts, get, thread, send, search, user" >&2
+        echo "Actions: posts, get, thread, send, search, user, my-posts" >&2
         exit 1
         ;;
 esac
