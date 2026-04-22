@@ -12,6 +12,12 @@
 # Or, with a local clone of this repo:
 #   ./scripts/install-as-subtree.sh [prefix]
 #
+# Env overrides:
+#   AI_HUB_REMOTE     — remote name (default: ai-hub)
+#   AI_HUB_URL        — remote URL (default: https://github.com/sagos95/ai-hub.git)
+#   AI_HUB_BRANCH     — branch (default: main)
+#   AI_HUB_NAMESPACE  — slash-command namespace for symlinks (default: ai-hub)
+#
 # Default prefix: integrations/sagos95-ai-hub
 set -euo pipefail
 
@@ -19,6 +25,7 @@ PREFIX="${1:-integrations/sagos95-ai-hub}"
 REMOTE_NAME="${AI_HUB_REMOTE:-ai-hub}"
 REMOTE_URL="${AI_HUB_URL:-https://github.com/sagos95/ai-hub.git}"
 BRANCH="${AI_HUB_BRANCH:-main}"
+NAMESPACE="${AI_HUB_NAMESPACE:-ai-hub}"
 
 die() { echo "ERROR: $*" >&2; exit 1; }
 
@@ -49,18 +56,70 @@ git fetch "$REMOTE_NAME" "$BRANCH"
 echo ">>> git subtree add --prefix=$PREFIX $REMOTE_NAME $BRANCH --squash"
 git subtree add --prefix="$PREFIX" "$REMOTE_NAME" "$BRANCH" --squash
 
+# --- Link all commands from the subtree into .claude/commands/<namespace>/ ---
+link_commands() {
+  local prefix="$1"
+  local namespace="$2"
+  local target_dir=".claude/commands/$namespace"
+  # target_dir is .claude/commands/<ns>/ → 3 levels up to repo root
+  local up="../../../"
+
+  mkdir -p "$target_dir"
+
+  local created=0 skipped=0 conflicted=0
+  shopt -s nullglob
+  for cmd_file in "$prefix"/integrations/*/commands/*.md; do
+    local base
+    base=$(basename "$cmd_file")
+    local link="$target_dir/$base"
+
+    if [[ -L "$link" ]]; then
+      # Already a symlink — check if it points where we expect; if yes, skip silently
+      local current_target
+      current_target=$(readlink "$link")
+      if [[ "$current_target" == "${up}${cmd_file}" ]]; then
+        ((skipped++))
+      else
+        echo "   ! $base already symlinked elsewhere (kept): $current_target"
+        ((conflicted++))
+      fi
+      continue
+    fi
+
+    if [[ -e "$link" ]]; then
+      echo "   ! $base exists as regular file — not overwriting"
+      ((conflicted++))
+      continue
+    fi
+
+    (cd "$target_dir" && ln -s "${up}${cmd_file}" "$base")
+    echo "   + $base"
+    ((created++))
+  done
+  shopt -u nullglob
+
+  echo ">>> Symlinks in $target_dir/: $created created, $skipped already correct, $conflicted left in place"
+}
+
+echo ">>> Linking slash-commands into .claude/commands/$NAMESPACE/ ..."
+link_commands "$PREFIX" "$NAMESPACE"
+
 cat <<EOF
 
 ================================================================
 Installed sagos95/ai-hub as subtree at: $PREFIX
+Slash-commands linked under .claude/commands/$NAMESPACE/
 
 Next steps:
   1. Register plugin in .claude/settings.json:
        { "plugins": ["./$PREFIX", "."] }
-  2. (Optional) Add a Makefile target to update later:
+  2. (Optional) Add a Makefile target for future updates:
        update-ai-hub:
        	git subtree pull --prefix=$PREFIX $REMOTE_NAME $BRANCH --squash
-  3. To update from upstream anytime:
-       git subtree pull --prefix=$PREFIX $REMOTE_NAME $BRANCH --squash
+       	@./$PREFIX/scripts/relink-commands.sh $PREFIX $NAMESPACE 2>/dev/null || true
+  3. Update anytime via:
+       /ai-hub:update-ai-hub         (after plugin registration)
+       make update-ai-hub            (if Makefile target added)
+       curl -sL https://raw.githubusercontent.com/sagos95/ai-hub/main/scripts/update-from-ai-hub.sh | bash
 ================================================================
 EOF
