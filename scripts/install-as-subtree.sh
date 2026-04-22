@@ -145,15 +145,43 @@ register_plugin() {
 echo ">>> Registering plugin in .claude/settings.json ..."
 register_plugin "$PREFIX"
 
+# --- Seed team-config.json from the subtree's example, if overlay doesn't have one ---
+seed_team_config() {
+  local prefix="$1"
+  local example="$prefix/team-config.example.json"
+  local target="team-config.json"
+
+  if [[ ! -f "$example" ]]; then
+    return
+  fi
+
+  if [[ -f "$target" ]]; then
+    echo "   ✓ team-config.json already exists — leaving as is"
+    return
+  fi
+
+  cp "$example" "$target"
+  echo "   + Copied $example → $target"
+  echo "     Fill in your team's board/channel IDs (edit manually, or ask your"
+  echo "     AI agent to walk you through it via /$NAMESPACE:setup)."
+}
+
+echo ">>> Seeding team-config.json ..."
+seed_team_config "$PREFIX"
+
 cat <<EOF
 
 ================================================================
 Installed sagos95/ai-hub as subtree at: $PREFIX
 Slash-commands linked under .claude/commands/$NAMESPACE/
 Plugin registered in .claude/settings.json
+team-config.json seeded from example (if it didn't exist yet)
 
 You're ready — start Claude Code in this repo and all /$NAMESPACE:* commands
 will be available.
+
+Next step: fill team-config.json with your board/channel IDs — either edit it
+manually, or run /$NAMESPACE:setup and let the AI help you fill it in.
 
 Optional:
   * Add a Makefile target for future updates:
