@@ -115,12 +115,64 @@ integrations/
 
 AI Hub задуман как **generic-ядро**, которое команда может расширить своей спецификой. Паттерн:
 
-1. Склонируй ai-hub (или подключи как git subtree)
+1. Подключи ai-hub в свой overlay-репозиторий как git subtree (см. ниже)
 2. Добавь свой `team-config.json` с ID досок и каналов
 3. Добавь команднo-специфичные интеграции (например, свой kaiten-workflow с нужными колонками)
 4. Добавь `AI_CONTEXT.md` с описанием своей команды и продуктов
 
 Generic-интеграции получают обновления из ai-hub, а командная специфика живёт отдельно.
+
+### Установка как git subtree (одной командой)
+
+Из корня своего overlay-репозитория:
+
+```bash
+curl -sL https://raw.githubusercontent.com/sagos95/ai-hub/main/scripts/install-as-subtree.sh | bash
+```
+
+Это добавит remote `ai-hub`, сделает `git subtree add --prefix=integrations/sagos95-ai-hub` и подскажет, как зарегистрировать плагин в `.claude/settings.json`. Свой prefix можно передать аргументом:
+
+```bash
+curl -sL https://raw.githubusercontent.com/sagos95/ai-hub/main/scripts/install-as-subtree.sh | bash -s integrations/ai-hub
+```
+
+### Обновление subtree
+
+```bash
+curl -sL https://raw.githubusercontent.com/sagos95/ai-hub/main/scripts/update-from-ai-hub.sh | bash
+# либо с локальным скриптом (если сохранил его в своём репо):
+./scripts/update-from-ai-hub.sh [prefix]
+```
+
+### Альтернатива — вручную
+
+```bash
+# установка
+git remote add ai-hub https://github.com/sagos95/ai-hub.git
+git fetch ai-hub
+git subtree add --prefix=integrations/sagos95-ai-hub ai-hub main --squash
+
+# обновление
+git subtree pull --prefix=integrations/sagos95-ai-hub ai-hub main --squash
+```
+
+### Пример структуры overlay-репозитория
+
+```
+your-team-repo/
+├── integrations/
+│   ├── sagos95-ai-hub/         ← subtree (read-only для команды; правки → PR в sagos95/ai-hub)
+│   ├── <your-team>-workflow/   ← команднo-специфичные скиллы
+│   └── <other-vendor>/         ← при желании — другой публичный hub как ещё один subtree
+├── .claude/
+│   ├── settings.json           ← plugins: ["./integrations/sagos95-ai-hub", "."]
+│   └── commands/<ns>/          ← симлинки на команды из integrations/*
+├── team-config.json            ← локальный (gitignore или без секретов)
+├── AI_CONTEXT.md               ← описание команды и продуктов
+└── CLAUDE.md                   ← корневые инструкции (vendor-CLAUDE.md игнорятся)
+```
+
+**Инвариант:** `integrations/sagos95-ai-hub/` — read-only. Любые правки generic-скиллов идут PR в upstream `sagos95/ai-hub`, затем `update-from-ai-hub.sh` в overlay-репо.
 
 ---
 
