@@ -1,0 +1,6 @@
+{
+  "name": "genie",
+  "version": "1.0.0",
+  "description": "Databricks Genie API client — natural-language queries to DWH",
+  "author": { "name": "AI Hub Contributors" }
+}

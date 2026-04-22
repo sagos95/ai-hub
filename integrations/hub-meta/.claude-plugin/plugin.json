@@ -1,0 +1,6 @@
+{
+  "name": "hub-meta",
+  "version": "1.1.0",
+  "description": "AI Hub meta-tools — setup wizard, create new commands, run session retrospectives, auto-install marketplace plugins",
+  "author": { "name": "AI Hub Contributors" }
+}

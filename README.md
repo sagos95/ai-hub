@@ -6,7 +6,27 @@
 
 ## Установка
 
-### Claude Code
+### Claude Code — через marketplace (рекомендуемый способ)
+
+Добавь ai-hub как marketplace и установи нужные плагины:
+
+```bash
+# Добавить marketplace (один раз)
+claude /plugin marketplace add sagos95/ai-hub
+
+# Установить конкретный плагин
+claude /plugin install spike@ai-hub
+claude /plugin install kaiten@ai-hub
+claude /plugin install time@ai-hub
+# ... или всё сразу:
+claude /plugin install buildin@ai-hub code-review@ai-hub discovery@ai-hub \
+  genie@ai-hub holst@ai-hub hub-meta@ai-hub kaiten@ai-hub \
+  reverse-product-analysis@ai-hub spike@ai-hub test-factory@ai-hub time@ai-hub
+```
+
+Доступные плагины marketplace: `buildin`, `code-review`, `discovery`, `genie`, `holst`, `hub-meta`, `kaiten`, `reverse-product-analysis`, `spike`, `test-factory`, `time`.
+
+### Claude Code — через git clone (для разработки или full repo)
 
 ```bash
 git clone https://github.com/sagos95/ai-hub.git

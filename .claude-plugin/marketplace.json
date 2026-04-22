@@ -106,17 +106,6 @@
       "homepage": "https://github.com/sagos95/ai-hub/tree/main/integrations/test-factory"
     },
     {
-      "name": "development",
-      "description": "Dev environment investigation — pods, logs, Kafka, services health diagnostics",
-      "version": "1.0.0",
-      "author": {
-        "name": "AI Hub Contributors"
-      },
-      "source": "./integrations/development",
-      "category": "development",
-      "homepage": "https://github.com/sagos95/ai-hub/tree/main/integrations/development"
-    },
-    {
       "name": "hub-meta",
       "description": "AI Hub meta-tools — setup wizard, create new commands, run session retrospectives",
       "version": "1.1.0",
@@ -126,17 +115,6 @@
       "source": "./integrations/hub-meta",
       "category": "development",
       "homepage": "https://github.com/sagos95/ai-hub/tree/main/integrations/hub-meta"
-    },
-    {
-      "name": "presentations",
-      "description": "HTML presentation generator — visually striking slides with auto-style discovery from design references",
-      "version": "1.0.0",
-      "author": {
-        "name": "AI Hub Contributors"
-      },
-      "source": "./integrations/presentations",
-      "category": "productivity",
-      "homepage": "https://github.com/sagos95/ai-hub/tree/main/integrations/presentations"
     },
     {
       "name": "code-review",
