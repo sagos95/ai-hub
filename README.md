@@ -6,7 +6,7 @@
 
 ## Установка
 
-### Claude Code — через marketplace (рекомендуемый способ)
+### Claude Code — через marketplace
 
 Добавь ai-hub как marketplace и установи нужные плагины:
 
@@ -14,27 +14,28 @@
 # Добавить marketplace (один раз)
 claude /plugin marketplace add sagos95/ai-hub
 
-# Установить конкретный плагин
-claude /plugin install spike@ai-hub
-claude /plugin install kaiten@ai-hub
-claude /plugin install time@ai-hub
-# ... или всё сразу:
+# Установить все инструменты:
 claude /plugin install buildin@ai-hub code-review@ai-hub discovery@ai-hub \
   genie@ai-hub holst@ai-hub hub-meta@ai-hub kaiten@ai-hub \
   reverse-product-analysis@ai-hub spike@ai-hub test-factory@ai-hub time@ai-hub
+
+# Установить конкретный плагин:
+claude /plugin install spike@ai-hub
+claude /plugin install kaiten@ai-hub
+claude /plugin install time@ai-hub
 ```
 
 Доступные плагины marketplace: `buildin`, `code-review`, `discovery`, `genie`, `holst`, `hub-meta`, `kaiten`, `reverse-product-analysis`, `spike`, `test-factory`, `time`.
 
-### Claude Code — через git clone (для разработки или full repo)
+### Claude Code — через git clone
 
 ```bash
 git clone https://github.com/sagos95/ai-hub.git
 cd ai-hub
-cp .env.example .env   # заполнить токены
+cp .env.example .env   # заполнить нужные токены и секреты
 ```
 
-Все скиллы доступны сразу через `/ai-hub:*` команды.
+Все скиллы будут доступны сразу через `/ai-hub:*` команды.
 
 ### Другие AI-агенты (Copilot, Codex, Windsurf, Cursor...)
 
@@ -52,7 +53,7 @@ KAITEN_API_TOKEN=...      # Kaiten (задачи, доски, спринты)
 - Time — `/ai-hub:time-login` (browser-based SSO)
 - Buildin — `/ai-hub:buildin-login` (browser-based SSO)
 
-Скиллы без токенов (ai-test, rpa-analyze, retro, code-review) работают сразу.
+Скиллы без токенов (ai-test, rpa-analyze, retro, code-review и т.д.) работают сразу.
 
 ### Кастомизация под команду
 
@@ -65,19 +66,19 @@ KAITEN_API_TOKEN=...      # Kaiten (задачи, доски, спринты)
 ```
 ├── .claude-plugin/
 │   └── plugin.json               # Манифест плагина
-├── .claude/commands/ai-hub/      # Slash-команды (симлинки → integrations/)
-├── integrations/                 # Модули скиллов
-│   ├── kaiten/                   #   Kaiten API — универсальный клиент
-│   ├── buildin/                  #   Buildin — wiki
-│   ├── time/                     #   Time (Mattermost)
+├── .claude/commands/ai-hub/      # Slash-команды (симлинки на папку integrations/)
+├── integrations/                 # Интеграции: скиллы, плагины и т.д.
+│   ├── kaiten/                   #   Интеграция с Kaiten (чтение, запись, поиск по доскам, карточкам, и т.д.)
+│   ├── buildin/                  #   Buildin (чтение, запись, поиск по страницам)
+│   ├── time/                     #   Time (чтение, запись, поиск по сообщениям, каналам, тредам)
 │   ├── genie/                    #   Databricks Genie (аналитика)
-│   ├── holst/                    #   Holst.so — визуальные доски
-│   ├── spike/                    #   Spike-исследования
+│   ├── holst/                    #   Holst.so — (в основном чтение досок)
+│   ├── spike/                    #   Скилл для технического исследования задачи
 │   ├── discovery/                #   Product Discovery (9 фаз)
-│   ├── reverse-product-analysis/ #   Реверс-анализ сервисов
-│   ├── test-factory/             #   AI-тестирование
+│   ├── reverse-product-analysis/ #   Реверс-анализ проекта с полным описанием его функционала и сущностей
+│   ├── test-factory/             #   Скилл для создания тестов
 │   ├── code-review/              #   Code review workflow
-│   └── hub-meta/                 #   Мета-команды хаба
+│   └── hub-meta/                 #   Мета-команды хаба (используется для разработки самого хаба)
 ├── team-config.example.json      # Шаблон конфига команды
 └── CLAUDE.md                     # Инструкции для AI-агента
 ```
@@ -133,7 +134,7 @@ integrations/
 
 ## Использование как team overlay
 
-AI Hub задуман как **generic-ядро**, которое команда может расширить своей спецификой. Паттерн:
+AI Hub может использоваться не только самостоятельно, но и как **generic-ядро**, которое команда может расширить своей спецификой внутри своего репозитория ИИ-хаба. Как это работает:
 
 1. Подключи ai-hub в свой overlay-репозиторий как git subtree (см. ниже)
 2. Добавь свой `team-config.json` с ID досок и каналов
@@ -142,9 +143,9 @@ AI Hub задуман как **generic-ядро**, которое команда
 
 Generic-интеграции получают обновления из ai-hub, а командная специфика живёт отдельно.
 
-### Установка как git subtree (одной командой)
+### Установка (как git subtree)
 
-Из корня своего overlay-репозитория:
+Из корня своего overlay-репозитория (своего ai-hub):
 
 ```bash
 curl -sL https://raw.githubusercontent.com/sagos95/ai-hub/main/scripts/install-as-subtree.sh | bash
@@ -194,7 +195,7 @@ git subtree pull --prefix=integrations/sagos95-ai-hub ai-hub main --squash
 ```
 your-team-repo/
 ├── integrations/
-│   ├── sagos95-ai-hub/         ← subtree (read-only для команды; правки → PR в sagos95/ai-hub)
+│   ├── sagos95-ai-hub/         ← subtree (read-only для вашей команды; если захочется внести правки, то можно создать PR в sagos95/ai-hub)
 │   ├── <your-team>-workflow/   ← команднo-специфичные скиллы
 │   └── <other-vendor>/         ← при желании — другой публичный hub как ещё один subtree
 ├── .claude/
