@@ -4,25 +4,13 @@
 
 ---
 
-## 🤖 Инструкция AI-агенту (любому — Claude Code, Codex, Cursor, Copilot, Windsurf…)
+Для AI-агентов есть отдельная короткая инструкция: [INSTALL.md](INSTALL.md).
 
-Пользователь сказал _«установи мне этот репозиторий»_? Клонирование — только половина работы. **Сразу после `git clone` запусти setup-диспетчер и крути его в цикле, пока не получишь `STATUS: DONE`.**
+Если хочешь дать репозиторий другому агенту, удобнее всего давать raw URL на этот файл:
 
-```bash
-bash integrations/hub-meta/scripts/setup.sh next
+```text
+https://raw.githubusercontent.com/sagos95/ai-hub/main/INSTALL.md
 ```
-
-Этот скрипт печатает ОДИН текущий шаг с точными командами. Выполни их — вызови `next` ещё раз — получи следующий шаг. И так до `STATUS: DONE`.
-
-### Hard rules
-
-1. **НЕ докладывай «установка завершена» пока первая строка вывода не `STATUS: DONE`**. Статус определяется скриптом, не твоим ощущением.
-2. **Chrome DevTools MCP — ОБЯЗАТЕЛЕН. Установи его автоматически, не спрашивай юзера.** Команда установки напечатана на Step 1. Без MCP браузерные логины придётся делать вручную — это антипаттерн.
-3. **Default-сценарий: юзер только нажимает Google SSO в браузере.** Любые «попроси юзера открыть DevTools и что-то скопировать» — manual fallback, используй только если MCP недоступен и нет другого способа.
-4. **Порядок шагов фиксированный** (ими управляет сам скрипт): миграция → MCP → Buildin login → конфиг-страница команды → Time login → Holst → Kaiten token → team-config.
-5. **Secrets не светятся в чат.** Скрипт использует `env-manager.sh set KEY VALUE` — токен идёт прямо в `.env`, в контекст LLM не попадает.
-
-Полный длинный reference (если что-то непонятно) — [`integrations/hub-meta/commands/setup.md`](integrations/hub-meta/commands/setup.md). Но дефолтный путь — просто крутить `setup.sh next`.
 
 ---
 
@@ -49,7 +37,7 @@ claude /plugin install time@ai-hub
 
 Доступные плагины marketplace: `buildin`, `code-review`, `discovery`, `genie`, `holst`, `hub-meta`, `kaiten`, `reverse-product-analysis`, `spike`, `test-factory`, `time`.
 
-### Через git clone + setup (любой AI-агент)
+### Через git clone или zip + setup
 
 ```bash
 git clone https://github.com/sagos95/ai-hub.git
@@ -58,7 +46,16 @@ bash integrations/hub-meta/scripts/setup.sh next
 # или: npm run setup
 ```
 
-Скажи своему агенту: _«крути этот скрипт, пока не получишь STATUS: DONE»_ — он проведёт через установку MCP, логины в Buildin/Time/Holst и вставку Kaiten-токена. Команды `/ai-hub:*` станут доступны автоматически.
+Если на машине нет `git`, публичный репозиторий можно скачать как архив:
+
+```bash
+curl -L https://github.com/sagos95/ai-hub/archive/refs/heads/main.zip -o ai-hub.zip
+unzip ai-hub.zip
+cd ai-hub-main
+bash integrations/hub-meta/scripts/setup.sh next
+```
+
+Если установку делает AI-агент, лучше давать ему [INSTALL.md](INSTALL.md), а не пересказывать шаги вручную.
 
 > `package.json` здесь не делает репу Node-проектом — это тонкий обёрточный файл, чтобы агенты, по привычке запускающие `npm run setup` после клона, автоматически триггерили правильный workflow. Никаких npm-зависимостей нет.
 
