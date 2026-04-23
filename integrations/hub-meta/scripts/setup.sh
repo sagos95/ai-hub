@@ -316,14 +316,7 @@ EOF
 # У Kaiten нет cookie-based API: токен выдаёт только UI в профиле.
 # pycookiecheat не поможет. Если юзер не пользуется Kaiten — шаг пропускается.
 check_6() {
-    is_skipped kaiten_token && return 0
-    $ENV_MGR has KAITEN_TOKEN || return 1
-    load_env_locally
-    local code
-    code=$(curl -sS -o /dev/null -w "%{http_code}" \
-        -H "Authorization: Bearer $KAITEN_TOKEN" \
-        "https://$KAITEN_DOMAIN/api/latest/users/current" 2>/dev/null)
-    [[ "$code" == "200" ]]
+    is_skipped kaiten_token || is_marked kaiten_token
 }
 load_env_locally() {
     if [[ -f "$ROOT_DIR/.env" ]]; then
@@ -354,13 +347,18 @@ API, токен выдаётся только через UI профиля. Ав
   >
   >  Если не пользуешься Kaiten — скажи «пропустить», настроим без него.»
 
+ЖДИ ОТВЕТА ЮЗЕРА. НЕ ПРОДОЛЖАЙ ДАЛЬШЕ АВТОМАТИЧЕСКИ.
+
 ЕСЛИ ЮЗЕР ПРИСЛАЛ ТОКЕН (в чате):
   $ENV_MGR set KAITEN_TOKEN "<token>"
-  Потом валидируй: curl с Authorization: Bearer на https://$kaiten_domain/api/latest/users/current
-  — 200 значит ок, иначе попроси пересоздать.
+  Валидируй: curl с Authorization: Bearer на https://$kaiten_domain/api/latest/users/current
+  — 200 → $0 mark kaiten_token && $0 next
+  — иначе → попроси пересоздать токен.
 
-ЕСЛИ ЮЗЕР САМ ПОЛОЖИЛ В .env (открыл редактором):
-  Никакого действия от тебя — просто валидируй тем же curl'ом.
+ЕСЛИ ЮЗЕР СКАЗАЛ «ГОТОВО» / «СОХРАНИЛ» (положил в .env сам):
+  Валидируй тем же curl'ом (прочитай токен из .env).
+  — 200 → $0 mark kaiten_token && $0 next
+  — иначе → попроси проверить токен.
 
 ЕСЛИ ЮЗЕР СКАЗАЛ «ПРОПУСТИТЬ»:
   $0 skip kaiten_token
