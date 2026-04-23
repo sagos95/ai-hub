@@ -74,7 +74,7 @@ save_token_to_env() {
 
 cmd_cookie() {
     local requested_browser="${1:-auto}"
-    local extractor="$SCRIPT_DIR/buildin-cookie-extract.py"
+    local extractor="$ROOT_DIR/integrations/hub-meta/scripts/browser-cookie-extract.py"
 
     if [[ ! -f "$extractor" ]]; then
         echo "error:extractor_missing ($extractor)" >&2
@@ -101,7 +101,7 @@ cmd_cookie() {
     # Capture token into a shell var. Stdout of the extractor = token value,
     # never echoed anywhere. Stderr carries `browser:<name>` marker + errors.
     local TOKEN
-    TOKEN=$(python3 "$extractor" "$requested_browser" 2>"$stderr_buf")
+    TOKEN=$(python3 "$extractor" "https://buildin.ai" "next_auth" "$requested_browser" 2>"$stderr_buf")
     local rc=$?
 
     if [[ $rc -ne 0 || -z "$TOKEN" ]]; then

@@ -244,21 +244,49 @@ say_4() {
 
     banner 4 $TOTAL "time_login"
     cat <<EOF
-Логин в Time (Mattermost). Через Chrome DevTools MCP:
+Логин в Time (Mattermost). Тот же механизм что в Step 2: читаем MMAUTHTOKEN
+cookie напрямую из профиля браузера юзера. MMAUTHTOKEN — httpOnly, но
+pycookiecheat читает SQLite-DB напрямую, httpOnly-флаг не мешает.
 
-1. navigate_page → $time_url
-2. Скажи юзеру: «Залогинься через Google SSO, скажи "готово".»
-3. evaluate_script — проверь что ты внутри:
-     async () => (await fetch('$time_url/api/v4/users/me')).status
+═══════════════════════════════════════════════════════════════════════════════
+PRIMARY. Cookie extraction (без MCP).
+═══════════════════════════════════════════════════════════════════════════════
 
-   Ожидается 200.
-4. DevTools MCP не читает httpOnly cookies через JS, поэтому:
-   Скажи юзеру: «DevTools (F12) → Application → Cookies → найди MMAUTHTOKEN на домене Time →
-   скопируй ЗНАЧЕНИЕ (длинная строка) и пришли мне.»
-5. Когда юзер пришлёт:
-     $ENV_MGR set TIME_TOKEN "<token>"
-6. Проверь: bash integrations/time/scripts/time-login.sh check
-   Ожидается "ok @username (email)".
+Скорее всего юзер уже дал Keychain grant "Allow Once" в Step 2 и браузер тот же.
+Если keychain попросит снова — напомни нажать **Allow Once**, не Always Allow.
+
+ЗАПУСК:
+
+  bash integrations/time/scripts/time-login.sh cookie
+
+Ожидаемый вывод: \`ok @<username> (via chrome/Profile N)\`.
+
+РЕЗУЛЬТАТЫ:
+  • \`ok ...\` → идём к Step 5.
+  • \`error:no_cookie_found\` → юзер не залогинен в Time в своём браузере.
+    Скажи: «Открой $time_url, залогинься через Google SSO, скажи "готово"». Повтори.
+  • \`error:validation_failed\` → cookie найдена но Time её отверг (сессия истекла).
+    Перелогинься в Time, повтори.
+  • \`error:TIME_BASE_URL_not_set\` → Step 3 не прошёл, нет URL-а. Вернись туда.
+
+═══════════════════════════════════════════════════════════════════════════════
+FALLBACK. Manual (если cookie-путь не подходит — Safari, например).
+═══════════════════════════════════════════════════════════════════════════════
+
+Скажи юзеру:
+
+  > «Открой $time_url, залогинься. F12 → Application → Cookies → найди MMAUTHTOKEN,
+  >  скопируй value (длинная строка) и пришли мне.»
+
+Когда юзер пришлёт:
+
+  bash integrations/time/scripts/time-login.sh sso
+  # (интерактивно попросит вставить токен)
+
+ИЛИ напрямую:
+
+  $ENV_MGR set TIME_TOKEN "<token>"
+  bash integrations/time/scripts/time-login.sh check
 
 После: $0 next
 EOF
@@ -269,18 +297,21 @@ check_5() { is_marked holst_ready || is_skipped holst; }
 say_5() {
     banner 5 $TOTAL "holst_login"
     cat <<EOF
-Holst хранит сессию в самом браузере — отдельного токена нет. Достаточно,
-чтобы юзер залогинился один раз в том же Chrome, который использует MCP.
+Holst — единственный шаг, где cookie extraction НЕ помогает. В отличие от Buildin/Time,
+у Holst нет API-токена: скиллы /ai-hub:holst-export/write запускают JS-код ВНУТРИ
+открытой страницы холста (через evaluate_script MCP'а). Нужна живая сессия именно в
+Chrome'е под управлением MCP, а не в обычном Chrome юзера — куки между ними не
+шарятся.
 
-Через Chrome DevTools MCP:
+Вариант 1 (MCP available): через Chrome DevTools MCP:
+  1. navigate_page → https://app.holst.so/
+  2. Скажи юзеру: «Залогинься в Holst через Google SSO, скажи "готово" когда будешь
+     в рабочем пространстве.»
+  3. После подтверждения:
+       $0 mark holst_ready
 
-1. navigate_page → https://app.holst.so/
-2. Скажи юзеру: «Залогинься в Holst, скажи "готово" когда будешь в рабочем пространстве.»
-3. После подтверждения:
-     $0 mark holst_ready
-
-Если юзер не пользуется Holst и хочет пропустить:
-     $0 skip holst
+Вариант 2 (MCP не нужен / Holst не используется):
+  $0 skip holst
 
 После: $0 next
 EOF

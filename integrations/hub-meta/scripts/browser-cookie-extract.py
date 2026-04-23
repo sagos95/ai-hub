@@ -1,29 +1,34 @@
 #!/usr/bin/env python3
-"""buildin-cookie-extract.py — read Buildin's `next_auth` cookie from a local
-Chromium-family browser profile via pycookiecheat.
+"""browser-cookie-extract.py — read a named cookie for a URL from any local
+Chromium-family browser profile (or Firefox) via pycookiecheat.
 
 ⚠️ DO NOT RUN THIS SCRIPT DIRECTLY FROM AN AGENT CONTEXT.
-The raw cookie (a JWT whose payload contains the user's email) is written to
-STDOUT — a naive agent invocation would pipe it straight into LLM context.
+The raw cookie value (often a session token / JWT containing PII like email)
+is written to STDOUT — a naive agent invocation would pipe it straight into
+LLM context.
 
-Always go through:
-    bash integrations/buildin/scripts/buildin-login.sh cookie [browser]
+Always go through the service-specific shell wrapper:
+    bash integrations/buildin/scripts/buildin-login.sh cookie
+    bash integrations/time/scripts/time-login.sh cookie
 
 …which captures stdout into a shell-local variable, validates, and writes to
-.env without exposing anything to the agent beyond `ok <nickname> (via <browser>)`.
+.env without exposing anything to the agent beyond `ok <nickname>`.
 
 ─────────────────────────────────────────────────────────────────────────────
 
 Handles multiple profiles per browser: iterates Default, Profile 1, Profile 2,
 ... for each installed browser, picks the first profile where the cookie is
-actually present.
+actually present. Works for httpOnly cookies too — pycookiecheat reads the
+backing SQLite directly, bypassing the JS-level httpOnly restriction.
 
-Usage (for the shell wrapper only):
-    buildin-cookie-extract.py [browser]
+Usage (for shell wrappers only):
+    browser-cookie-extract.py <url> <cookie_name> [browser]
 
 Arguments:
-    browser (optional)  one of: chrome, chromium, brave, edge, vivaldi, opera,
-                                arc, firefox, auto (default: auto — try all)
+    url          e.g. https://buildin.ai or $TIME_BASE_URL
+    cookie_name  e.g. next_auth, MMAUTHTOKEN
+    browser      one of: chrome, chromium, brave, edge, vivaldi, opera, arc,
+                 firefox, auto (default: auto — try all)
 
 Contract:
     • On success: print the cookie value to STDOUT (no newline) and exit 0.
@@ -32,14 +37,10 @@ Contract:
     • On failure: print `error:<reason>` to STDERR and exit non-zero.
                   STDOUT must stay empty so wrapper can safely check emptiness.
 """
-import glob
 import os
 import subprocess
 import sys
 from pathlib import Path
-
-URL = "https://buildin.ai"
-COOKIE_NAME = "next_auth"
 
 # Per-browser data directory + Keychain service name (macOS).
 # Linux: ~/.config/<browser-name>; Windows: %LOCALAPPDATA%\<vendor>\...
@@ -146,8 +147,8 @@ def keychain_password(service: str) -> bytes:
     return raw.strip()
 
 
-def extract_from_profile(browser: str, profile_name: str, cookie_file: Path):
-    """Try to extract the Buildin cookie from one specific profile's Cookies DB."""
+def extract_from_profile(browser: str, profile_name: str, cookie_file: Path, url: str, cookie_name: str):
+    """Try to extract `cookie_name` for `url` from one specific profile's Cookies DB."""
     from pycookiecheat import chrome_cookies
     info = BROWSERS[browser]
 
@@ -155,22 +156,22 @@ def extract_from_profile(browser: str, profile_name: str, cookie_file: Path):
     # enumerate non-default profiles (pycookiecheat's browser= enum only looks
     # at the Default profile) AND support browsers not in the enum.
     password = keychain_password(info["keychain"])
-    cookies = chrome_cookies(url=URL, cookie_file=str(cookie_file), password=password)
-    return cookies.get(COOKIE_NAME)
+    cookies = chrome_cookies(url=url, cookie_file=str(cookie_file), password=password)
+    return cookies.get(cookie_name)
 
 
-def extract_firefox():
+def extract_firefox(url: str, cookie_name: str):
     from pycookiecheat import firefox_cookies  # noqa
-    cookies = firefox_cookies(URL)
-    return cookies.get(COOKIE_NAME)
+    cookies = firefox_cookies(url)
+    return cookies.get(cookie_name)
 
 
-def try_browser(browser: str):
+def try_browser(browser: str, url: str, cookie_name: str):
     """Yield (profile_label, token, error_msg) for each profile attempted.
     token is non-None on success; error_msg is non-None on failure."""
     if browser == "firefox":
         try:
-            token = extract_firefox()
+            token = extract_firefox(url, cookie_name)
             if token:
                 yield ("default", token, None)
             else:
@@ -186,7 +187,7 @@ def try_browser(browser: str):
 
     for profile_name, cookie_file in profiles:
         try:
-            token = extract_from_profile(browser, profile_name, cookie_file)
+            token = extract_from_profile(browser, profile_name, cookie_file, url, cookie_name)
         except Exception as e:
             yield (profile_name, None, f"{type(e).__name__}: {e}")
             continue
@@ -197,6 +198,14 @@ def try_browser(browser: str):
 
 
 def main():
+    if len(sys.argv) < 3:
+        print("usage: browser-cookie-extract.py <url> <cookie_name> [browser]", file=sys.stderr)
+        return 2
+
+    url = sys.argv[1]
+    cookie_name = sys.argv[2]
+    requested = sys.argv[3].lower() if len(sys.argv) > 3 else "auto"
+
     if not try_pycookiecheat_import():
         print(
             "error:pycookiecheat_not_installed "
@@ -204,8 +213,6 @@ def main():
             file=sys.stderr,
         )
         sys.exit(2)
-
-    requested = sys.argv[1].lower() if len(sys.argv) > 1 else "auto"
 
     if requested == "auto":
         candidates = list(BROWSERS.keys()) + ["firefox"]
@@ -217,7 +224,7 @@ def main():
 
     diag = []  # (browser, profile, error)
     for browser in candidates:
-        for profile, token, err in try_browser(browser):
+        for profile, token, err in try_browser(browser, url, cookie_name):
             if token:
                 print(f"browser:{browser}/{profile}", file=sys.stderr)
                 sys.stdout.write(token)
