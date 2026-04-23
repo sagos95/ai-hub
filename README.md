@@ -16,9 +16,11 @@ https://raw.githubusercontent.com/sagos95/ai-hub/main/INSTALL.md
 
 ## Установка
 
-### Claude Code — через marketplace
+### Через marketplace (Claude Code, GitHub Copilot, ...)
 
-Добавь ai-hub как marketplace и установи нужные плагины:
+AI Hub опубликован как marketplace-плагин. Любой AI-агент, поддерживающий marketplace (Claude Code, GitHub Copilot и другие), может установить отдельные плагины или весь набор через свой стандартный механизм.
+
+**Claude Code:**
 
 ```bash
 # Добавить marketplace (один раз)
@@ -35,7 +37,22 @@ claude /plugin install kaiten@ai-hub
 claude /plugin install time@ai-hub
 ```
 
-Доступные плагины marketplace: `buildin`, `code-review`, `discovery`, `genie`, `holst`, `hub-meta`, `kaiten`, `reverse-product-analysis`, `spike`, `test-factory`, `time`.
+**GitHub Copilot CLI:**
+
+```bash
+# Добавить marketplace (один раз)
+copilot plugin marketplace add sagos95/ai-hub
+
+# Установить все инструменты:
+copilot plugin install buildin@ai-hub code-review@ai-hub discovery@ai-hub \
+  genie@ai-hub holst@ai-hub hub-meta@ai-hub kaiten@ai-hub \
+  reverse-product-analysis@ai-hub spike@ai-hub test-factory@ai-hub time@ai-hub
+
+# Установить конкретный плагин:
+copilot plugin install spike@ai-hub
+```
+
+Доступные плагины: `buildin`, `code-review`, `discovery`, `genie`, `holst`, `hub-meta`, `kaiten`, `reverse-product-analysis`, `spike`, `test-factory`, `time`.
 
 ### Через git clone или zip + setup
 

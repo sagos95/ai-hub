@@ -1,7 +1,7 @@
 {
   "name": "ai-hub",
   "version": "1.8.1",
-  "description": "AI skills for Claude Code — integrations with Kaiten, Time, Buildin, Genie, Holst + automation workflows (spike research, product discovery, testing, code review)",
+  "description": "AI skills and integrations with Kaiten, Time, Buildin, Genie, Holst + automation workflows (spike research, product discovery, testing, code review)",
   "author": {
     "name": "sagos95"
   },
