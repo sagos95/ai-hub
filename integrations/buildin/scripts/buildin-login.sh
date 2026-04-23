@@ -1,17 +1,16 @@
 #!/bin/bash
 # Buildin Login — проверка/сохранение UI-токена
 #
-# Usage: ./buildin-login.sh check                     — проверить существующий токен
-#        ./buildin-login.sh save <token>              — проверить и сохранить токен
-#        ./buildin-login.sh clipboard                 — прочитать токен из буфера обмена (flaky на macOS)
-#        ./buildin-login.sh bridge-start              — поднять одноразовый HTTP-мост на 127.0.0.1:<port>
-#        ./buildin-login.sh bridge-wait [timeout_sec] — дождаться токена из моста и сохранить
+# Usage: ./buildin-login.sh check              — проверить существующий токен
+#        ./buildin-login.sh save <token>       — проверить и сохранить токен (manual fallback)
+#        ./buildin-login.sh cookie [browser]   — ПРИМАРНЫЙ ПУТЬ: прочитать cookie из профиля
+#                                                 Chrome/Brave/Edge/Arc/Firefox (без MCP/сети)
+#        ./buildin-login.sh clipboard          — legacy (pbpaste), не использовать в новых флоу
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 ENV_FILE="$ROOT_DIR/.env"
-CACHE_DIR="$ROOT_DIR/integrations/buildin/.cache"
 BUILDIN_BASE_URL="https://buildin.ai"
 
 # Load existing env
@@ -66,119 +65,74 @@ save_token_to_env() {
     fi
 }
 
-# --- HTTP bridge for automated token handover from browser → .env ---
-# Replaces the flaky clipboard path. Browser MCP evaluate_script fetches POST
-# into 127.0.0.1:<port>, listener writes body to a file, bridge-wait saves it.
+# --- Cookie extraction path (zero-MCP, reads directly from local browser profile) ---
+# Invokes buildin-cookie-extract.py which uses pycookiecheat to read the
+# `next_auth` cookie from the user's Chrome/Brave/Arc/etc. profile, then
+# validates and saves to .env. Token NEVER touches stdout visible to the agent:
+# the python helper prints it on stdout, shell captures it into a local var,
+# validates, writes to .env via save_token_to_env.
 
-bridge_start() {
-    mkdir -p "$CACHE_DIR"
+cmd_cookie() {
+    local requested_browser="${1:-auto}"
+    local extractor="$SCRIPT_DIR/buildin-cookie-extract.py"
 
-    # Kill any prior listener still running
-    if [[ -f "$CACHE_DIR/bridge.pid" ]]; then
-        local old_pid
-        old_pid=$(cat "$CACHE_DIR/bridge.pid" 2>/dev/null || echo "")
-        [[ -n "$old_pid" ]] && kill "$old_pid" 2>/dev/null || true
+    if [[ ! -f "$extractor" ]]; then
+        echo "error:extractor_missing ($extractor)" >&2
+        return 1
     fi
-    rm -f "$CACHE_DIR/bridge.token" "$CACHE_DIR/bridge.log" \
-          "$CACHE_DIR/bridge.pid"   "$CACHE_DIR/bridge.port"
 
-    # Pick a free port in 40000-59999
-    local port
-    local try
-    for try in 1 2 3 4 5 6 7 8 9 10; do
-        port=$((40000 + RANDOM % 20000))
-        if ! lsof -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then
-            break
+    if ! command -v python3 >/dev/null 2>&1; then
+        echo "error:python3_not_found" >&2
+        return 1
+    fi
+
+    # Auto-install pycookiecheat if missing. Silent, one-shot.
+    if ! python3 -c "import pycookiecheat" >/dev/null 2>&1; then
+        echo "info:pycookiecheat not installed — installing via pip --user..." >&2
+        if ! python3 -m pip install --user --quiet pycookiecheat >&2; then
+            echo "error:pycookiecheat_install_failed (try: python3 -m pip install --user pycookiecheat)" >&2
+            return 1
         fi
-        port=""
-    done
-    if [[ -z "$port" ]]; then
-        echo "error:no_free_port" >&2
-        exit 1
     fi
 
-    local listener="$SCRIPT_DIR/buildin-bridge-listener.py"
-    if [[ ! -f "$listener" ]]; then
-        echo "error:listener_missing ($listener)" >&2
-        exit 1
-    fi
+    local stderr_buf
+    stderr_buf=$(mktemp)
 
-    # Start in background, fully detached
-    nohup python3 "$listener" "$port" "$CACHE_DIR/bridge.token" \
-        > "$CACHE_DIR/bridge.log" 2>&1 &
-    local pid=$!
-    disown 2>/dev/null || true
-
-    echo "$pid"  > "$CACHE_DIR/bridge.pid"
-    echo "$port" > "$CACHE_DIR/bridge.port"
-
-    # Wait up to ~2s for the listener to bind
-    for try in 1 2 3 4 5 6 7 8 9 10; do
-        if lsof -iTCP:"$port" -sTCP:LISTEN -p "$pid" >/dev/null 2>&1; then
-            echo "port:$port"
-            echo "pid:$pid"
-            echo "ready:bridge listening at http://127.0.0.1:$port/"
-            return 0
-        fi
-        sleep 0.2
-    done
-
-    echo "error:listener_failed_to_bind" >&2
-    [[ -s "$CACHE_DIR/bridge.log" ]] && sed 's/^/listener-log: /' "$CACHE_DIR/bridge.log" >&2
-    kill "$pid" 2>/dev/null || true
-    exit 1
-}
-
-bridge_wait() {
-    local timeout="${1:-180}"
-
-    if [[ ! -f "$CACHE_DIR/bridge.pid" ]]; then
-        echo "error:no_bridge_running" >&2
-        exit 1
-    fi
-    local pid
-    pid=$(cat "$CACHE_DIR/bridge.pid")
-
-    # Poll for listener exit (exits after handling the one expected request)
-    local elapsed=0
-    while kill -0 "$pid" 2>/dev/null; do
-        if (( elapsed >= timeout )); then
-            kill "$pid" 2>/dev/null || true
-            rm -f "$CACHE_DIR/bridge.pid" "$CACHE_DIR/bridge.port"
-            echo "error:timeout (waited ${timeout}s for token)" >&2
-            exit 1
-        fi
-        sleep 1
-        elapsed=$((elapsed + 1))
-    done
-
-    local token_file="$CACHE_DIR/bridge.token"
-    if [[ ! -s "$token_file" ]]; then
-        rm -f "$CACHE_DIR/bridge.pid" "$CACHE_DIR/bridge.port"
-        echo "error:no_token_received" >&2
-        exit 1
-    fi
-
+    # Capture token into a shell var. Stdout of the extractor = token value,
+    # never echoed anywhere. Stderr carries `browser:<name>` marker + errors.
     local TOKEN
-    TOKEN=$(tr -d '[:space:]' < "$token_file")
+    TOKEN=$(python3 "$extractor" "$requested_browser" 2>"$stderr_buf")
+    local rc=$?
 
-    # Scrub ALL traces before any early return (token must not linger on disk)
-    rm -f "$token_file" "$CACHE_DIR/bridge.pid" "$CACHE_DIR/bridge.port" "$CACHE_DIR/bridge.log"
+    if [[ $rc -ne 0 || -z "$TOKEN" ]]; then
+        # Surface diagnostic lines (but no token value)
+        grep '^error:' "$stderr_buf" >&2 || echo "error:extract_failed" >&2
+        grep -v '^browser:' "$stderr_buf" | grep -v '^error:' >&2 || true
+        rm -f "$stderr_buf"
+        return 1
+    fi
+
+    # Pick out which browser actually worked (non-sensitive)
+    local detected
+    detected=$(grep '^browser:' "$stderr_buf" | head -1 | cut -d: -f2)
+    rm -f "$stderr_buf"
 
     if [[ ${#TOKEN} -lt 50 ]]; then
-        echo "error:not_a_jwt (too short: ${#TOKEN} chars)" >&2
-        exit 1
+        echo "error:not_a_jwt (too short: ${#TOKEN} chars — probably not logged in)" >&2
+        return 1
     fi
 
     local USER_INFO
     USER_INFO=$(verify_token "$TOKEN") || {
-        echo "error:validation_failed" >&2
-        exit 1
+        echo "error:validation_failed (cookie present but server rejected it — token expired?)" >&2
+        return 1
     }
 
     extract_user_info "$USER_INFO"
     save_token_to_env "$TOKEN"
-    echo "ok ${NICKNAME} (${EMAIL})"
+
+    # Email deliberately NOT printed — agent sees only nickname + browser hint
+    echo "ok ${NICKNAME} (via ${detected})"
 }
 
 # --- Main ---
@@ -196,7 +150,7 @@ case "$MODE" in
             exit 1
         }
         extract_user_info "$USER_INFO"
-        echo "ok ${NICKNAME} (${EMAIL})"
+        echo "ok ${NICKNAME}"
         ;;
 
     save)
@@ -213,7 +167,7 @@ case "$MODE" in
         }
         extract_user_info "$USER_INFO"
         save_token_to_env "$TOKEN"
-        echo "ok ${NICKNAME} (${EMAIL})"
+        echo "ok ${NICKNAME}"
         ;;
 
     clipboard)
@@ -236,19 +190,15 @@ case "$MODE" in
 
         # Clear clipboard
         echo -n "" | pbcopy
-        echo "ok ${NICKNAME} (${EMAIL})"
+        echo "ok ${NICKNAME}"
         ;;
 
-    bridge-start)
-        bridge_start
-        ;;
-
-    bridge-wait)
-        bridge_wait "${2:-180}"
+    cookie)
+        cmd_cookie "${2:-auto}"
         ;;
 
     *)
-        echo "Usage: $0 [check|save <token>|clipboard|bridge-start|bridge-wait [timeout_sec]]" >&2
+        echo "Usage: $0 [check|save <token>|cookie [browser]|clipboard]" >&2
         exit 1
         ;;
 esac

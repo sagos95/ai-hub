@@ -138,57 +138,66 @@ say_2() {
 Buildin — первый логин, потому что там лежит страница с общим конфигом команды
 (KAITEN_DOMAIN, TIME_BASE_URL, BUILDIN_SPACE_ID).
 
-Путь: browser → локальный HTTP-bridge на 127.0.0.1:<port> → .env. Clipboard НЕ используется
-(ненадёжно на macOS с DevTools MCP). Токен не проходит через контекст LLM.
+═══════════════════════════════════════════════════════════════════════════════
+PRIMARY. Чтение cookie из профиля браузера юзера — ноль MCP, ноль сети.
+═══════════════════════════════════════════════════════════════════════════════
 
-ШАГ 1/4. Подними мост:
+Buildin token живёт как cookie next_auth в Chrome/Brave/Edge/Vivaldi/Opera/Arc/Firefox.
+Скрипт читает напрямую из SQLite-профиля через pycookiecheat, расшифровывает через
+Keychain (macOS) / libsecret (Linux) / DPAPI (Windows), валидирует через Buildin API,
+пишет в .env. Токен НЕ попадает в контекст LLM — shell забирает stdout Python'а в
+локальную переменную. Email юзера тоже скрыт от агента.
 
-  bash integrations/buildin/scripts/buildin-login.sh bridge-start
+ПЕРЕД ЗАПУСКОМ — предупреди юзера ровно этим текстом:
 
-Вывод содержит строку \`port:<NNNNN>\` — запомни этот порт, он нужен в ШАГЕ 3.
+  > «Сейчас прочитаю cookie \`next_auth\` из твоего браузера — без открывания
+  >  окон, сам логин у тебя уже должен быть сделан там (любой из Chrome, Brave,
+  >  Edge, Vivaldi, Opera, Arc, Firefox).
+  >
+  >  macOS один раз покажет окно Keychain: «python3 wants to access Chrome Safe
+  >  Storage». **Нажми "Разрешить только сейчас" / "Allow Once", НЕ "Always
+  >  Allow"** — чтобы не раздавать Python'у persistent grant ко всем твоим
+  >  браузерным cookies.»
 
-ШАГ 2/4. Через Chrome DevTools MCP открой Buildin:
-  navigate_page → https://buildin.ai/login
-  Скажи юзеру: «Залогинься через Google SSO. Скажи "готово" когда будешь внутри.»
-  Дождись подтверждения.
+ЗАПУСК:
 
-ШАГ 3/4. Передай токен в мост. evaluate_script (подставь PORT из ШАГА 1):
+  bash integrations/buildin/scripts/buildin-login.sh cookie
 
-  async () => {
-    const m = document.cookie.match(/next_auth=([^;]+)/);
-    if (!m) return { status: 'error', reason: 'no_cookie' };
-    try {
-      const r = await fetch('http://127.0.0.1:<PORT>/', {
-        method: 'POST',
-        body: m[1],
-        mode: 'cors'
-      });
-      return { status: r.ok ? 'sent' : 'http_error', http: r.status, length: m[1].length };
-    } catch (e) {
-      return { status: 'fetch_error', msg: String(e) };
-    }
-  }
+Первый запуск может доустановить pycookiecheat через pip (молча, \`--user\`).
+Скрипт перебирает chrome → chromium → brave → edge → vivaldi → opera → arc → firefox
+и использует первый, где нашёл валидный cookie.
 
-LLM получит только {status, http, length} — сам токен останется в границах браузер↔bridge.
+РЕЗУЛЬТАТЫ:
+  • \`ok <Nickname> (via chrome)\` → всё, идём на Step 3.
+  • \`error:no_cookie_found\` → ни в одном поддерживаемом браузере нет Buildin-куки.
+    Скажи юзеру: «Открой Buildin в своём обычном браузере (Chrome/Brave/Arc/...),
+    залогинься через Google SSO, скажи "готово"». Потом повтори \`cookie\`.
+  • \`error:validation_failed\` → cookie нашлась, но Buildin API её отверг (истекла).
+    Попроси юзера перелогиниться в Buildin, повтори \`cookie\`.
+  • \`error:pycookiecheat_install_failed\` → нет pip / offline / ограничения прав.
+    Переходи к FALLBACK.
+  • Юзер использует только Safari → pycookiecheat Safari не читает. FALLBACK.
 
-ШАГ 4/4. Прими и сохрани токен:
+═══════════════════════════════════════════════════════════════════════════════
+FALLBACK. Manual paste — если primary не сработал.
+═══════════════════════════════════════════════════════════════════════════════
 
-  bash integrations/buildin/scripts/buildin-login.sh bridge-wait
+Скажи юзеру:
 
-(блокируется до 3 мин, возвращает \`ok Name (email)\` на успех)
+  > «Открой https://buildin.ai, залогинься. Открой DevTools (F12 или Cmd+Opt+I)
+  >  → вкладка Console → вставь и выполни:
+  >
+  >     document.cookie.match(/next_auth=([^;]+)/)?.[1]
+  >
+  >  Скопируй результат (длинная строка, ~300+ символов) и пришли мне.»
 
-Если любой шаг упал:
-  • bridge-start вернул error:no_free_port → повтори через минуту;
-  • evaluate_script вернул fetch_error → проверь что bridge ещё жив
-    (\`lsof -iTCP:<PORT>\`), возможно Chrome блокирует http-запросы из https-страницы —
-    попробуй в DevTools Console вручную: \`fetch('http://127.0.0.1:<PORT>/', {method:'POST', body: 'test'})\`;
-  • bridge-wait вернул error:timeout — юзер не дошёл до логина, повтори ШАГ 2 и 3;
-  • bridge-wait вернул error:validation_failed — cookie не валидна, юзер не залогинен.
+Когда юзер пришлёт токен:
 
-Manual fallback (если bridge не работает в принципе):
-  попроси юзера открыть https://buildin.ai, залогиниться, F12 → Console →
-  \`document.cookie.match(/next_auth=([^;]+)/)?.[1]\` → прислать тебе результат;
   bash integrations/buildin/scripts/buildin-login.sh save "<token>"
+
+Ожидаемый вывод: \`ok <Nickname>\`.
+
+═══════════════════════════════════════════════════════════════════════════════
 
 После успешного логина: $0 next
 EOF
