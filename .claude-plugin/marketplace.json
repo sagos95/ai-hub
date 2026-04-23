@@ -126,6 +126,17 @@
       "source": "./integrations/code-review",
       "category": "development",
       "homepage": "https://github.com/sagos95/ai-hub/tree/main/integrations/code-review"
+    },
+    {
+      "name": "testops",
+      "description": "Allure TestOps integration — test cases, launches, defects, test plans, jobs via REST API",
+      "version": "0.1.0",
+      "author": {
+        "name": "AI Hub Contributors"
+      },
+      "source": "./integrations/testops",
+      "category": "productivity",
+      "homepage": "https://github.com/sagos95/ai-hub/tree/main/integrations/testops"
     }
   ]
 }
