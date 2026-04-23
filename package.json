@@ -1,6 +1,6 @@
 {
   "name": "ai-hub",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "private": true,
   "description": "AI Hub is NOT a Node package. This file exists so AI agents that run `npm install` or `npm run setup` after clone will trigger the correct setup workflow. See README.md and CLAUDE.md/AGENTS.md.",
   "scripts": {
