@@ -15,7 +15,7 @@
 > 1. **Если ты Claude Code** — просто запусти `/ai-hub:setup`. Скилл сам проведёт юзера через все логины. Скажи пользователю коротко: _«Сейчас всё настроим. Откроется окно Chrome — залогинишься в Buildin, потом в Time и Holst. Токен Kaiten в конце попрошу вставить руками.»_ И стартуй скилл.
 > 2. **Если ты НЕ Claude Code** (Cursor, Codex, Copilot, Windsurf, …) — открой файл [`integrations/hub-meta/commands/setup.md`](integrations/hub-meta/commands/setup.md) и выполни его workflow как обычный план: это твой setup-script. Пройди с юзером по шагам Step 0 → Step 8, используя браузерные тулы (Chrome DevTools MCP / Playwright MCP / ручной fallback).
 >
-> **Порядок логинов важен:** Buildin → Time → Holst → Kaiten-токен. Buildin первый, потому что там захардкожена страница `https://buildin.ai/c7ec2023-9025-4c09-be09-e6f54cb07f7e` с общим конфигом команды (URL-ы Kaiten и Time). Если страница не откроется — спроси у юзера `KAITEN_DOMAIN` и `TIME_BASE_URL` вручную.
+> **Порядок логинов важен:** Buildin → Time → Holst → Kaiten-токен. Buildin первый. Если после логина Buildin страница не откроется — спроси у юзера `KAITEN_DOMAIN` и `TIME_BASE_URL` вручную.
 >
 > **Tone:** говори с юзером дружелюбно и по шагам. Предупреждай заранее, что сейчас произойдёт («щас откроется Chrome, залогинься там»). Не вываливай техническую портянку — веди диалог.
 
