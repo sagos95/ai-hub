@@ -95,11 +95,15 @@ say_1() {
 Нужен Chrome DevTools MCP — он используется для всех браузерных логинов (Buildin, Time, Holst)
 и для снятия скриншотов/debug в других скиллах.
 
-ЕСЛИ MCP УЖЕ УСТАНОВЛЕН (ты можешь вызывать navigate_page / evaluate_script / list_pages):
+СНАЧАЛА проверь, доступен ли MCP в текущем сеансе: попробуй вызвать list_pages или
+любой другой mcp__chrome-devtools__* тул.
+
+ЕСЛИ MCP УЖЕ РАБОТАЕТ (тул ответил):
   $0 mark mcp_ready
   $0 next
 
-ЕСЛИ MCP НЕ УСТАНОВЛЕН — установи автоматически, не спрашивай юзера. Типовые команды:
+ЕСЛИ MCP НЕ ОТВЕТИЛ — установи автоматически, не спрашивай юзера разрешения.
+Типовые команды установки:
 
   # Claude Code CLI:
   claude mcp add chrome-devtools -- npx chrome-devtools-mcp@latest
@@ -107,11 +111,20 @@ say_1() {
   # Codex / Cursor / Windsurf — добавь запись в их MCP-конфиг (.codex/, .cursor/mcp.json и т.п.):
   { "chrome-devtools": { "command": "npx", "args": ["chrome-devtools-mcp@latest"] } }
 
-После установки перезапусти сессию агента (если требуется), затем:
+⚠️ ВАЖНО: большинство агентов загружают MCP только при СТАРТЕ сессии. После установки
+**попроси юзера перезапустить агента** (в Claude Code: Ctrl+C → \`claude\` снова; в Codex/Cursor
+аналогично). Например:
+
+  > «Я поставил Chrome DevTools MCP. Чтобы он подгрузился в этот сеанс, перезапусти меня:
+  >  выйди из CLI (Ctrl+C или /exit) и запусти снова. Потом скажи "продолжаем" — я вернусь
+  >  к setup с того же места.»
+
+После рестарта и его "продолжаем":
   $0 mark mcp_ready
   $0 next
 
-ЗАПРЕЩЕНО: пропускать этот шаг. Без MCP дальнейшие логины придётся делать вручную — это антипаттерн.
+ЗАПРЕЩЕНО: пропускать этот шаг или продолжать setup без MCP. Без него логины придётся
+делать вручную — это антипаттерн.
 EOF
 }
 
@@ -125,30 +138,59 @@ say_2() {
 Buildin — первый логин, потому что там лежит страница с общим конфигом команды
 (KAITEN_DOMAIN, TIME_BASE_URL, BUILDIN_SPACE_ID).
 
-Сделай через Chrome DevTools MCP (юзер только нажимает Google SSO):
+Путь: browser → локальный HTTP-bridge на 127.0.0.1:<port> → .env. Clipboard НЕ используется
+(ненадёжно на macOS с DevTools MCP). Токен не проходит через контекст LLM.
 
-1. navigate_page → https://buildin.ai/login
-2. Скажи юзеру: «Залогинься через Google SSO. Скажи "готово" когда будешь внутри.»
-3. Дождись подтверждения.
-4. evaluate_script с таким function:
-     () => {
-       const m = document.cookie.match(/next_auth=([^;]+)/);
-       if (!m) return { status: 'error', reason: 'no_cookie' };
-       navigator.clipboard.writeText(m[1]);
-       return { status: 'copied', length: m[1].length };
-     }
-   (Токен в контекст LLM НЕ попадает — только { status, length }.)
-5. Если status=copied:
-     bash integrations/buildin/scripts/buildin-login.sh clipboard
+ШАГ 1/4. Подними мост:
 
-Ожидаемый результат: "ok Name (email)".
+  bash integrations/buildin/scripts/buildin-login.sh bridge-start
 
-Fallback (только если MCP по какой-то причине недоступен прямо сейчас):
-  — попроси юзера открыть https://buildin.ai, залогиниться, F12 → Console →
-    \`document.cookie.match(/next_auth=([^;]+)/)?.[1]\` → прислать результат;
-  — bash integrations/buildin/scripts/buildin-login.sh save "<token>"
+Вывод содержит строку \`port:<NNNNN>\` — запомни этот порт, он нужен в ШАГЕ 3.
 
-После: $0 next
+ШАГ 2/4. Через Chrome DevTools MCP открой Buildin:
+  navigate_page → https://buildin.ai/login
+  Скажи юзеру: «Залогинься через Google SSO. Скажи "готово" когда будешь внутри.»
+  Дождись подтверждения.
+
+ШАГ 3/4. Передай токен в мост. evaluate_script (подставь PORT из ШАГА 1):
+
+  async () => {
+    const m = document.cookie.match(/next_auth=([^;]+)/);
+    if (!m) return { status: 'error', reason: 'no_cookie' };
+    try {
+      const r = await fetch('http://127.0.0.1:<PORT>/', {
+        method: 'POST',
+        body: m[1],
+        mode: 'cors'
+      });
+      return { status: r.ok ? 'sent' : 'http_error', http: r.status, length: m[1].length };
+    } catch (e) {
+      return { status: 'fetch_error', msg: String(e) };
+    }
+  }
+
+LLM получит только {status, http, length} — сам токен останется в границах браузер↔bridge.
+
+ШАГ 4/4. Прими и сохрани токен:
+
+  bash integrations/buildin/scripts/buildin-login.sh bridge-wait
+
+(блокируется до 3 мин, возвращает \`ok Name (email)\` на успех)
+
+Если любой шаг упал:
+  • bridge-start вернул error:no_free_port → повтори через минуту;
+  • evaluate_script вернул fetch_error → проверь что bridge ещё жив
+    (\`lsof -iTCP:<PORT>\`), возможно Chrome блокирует http-запросы из https-страницы —
+    попробуй в DevTools Console вручную: \`fetch('http://127.0.0.1:<PORT>/', {method:'POST', body: 'test'})\`;
+  • bridge-wait вернул error:timeout — юзер не дошёл до логина, повтори ШАГ 2 и 3;
+  • bridge-wait вернул error:validation_failed — cookie не валидна, юзер не залогинен.
+
+Manual fallback (если bridge не работает в принципе):
+  попроси юзера открыть https://buildin.ai, залогиниться, F12 → Console →
+  \`document.cookie.match(/next_auth=([^;]+)/)?.[1]\` → прислать тебе результат;
+  bash integrations/buildin/scripts/buildin-login.sh save "<token>"
+
+После успешного логина: $0 next
 EOF
 }
 
