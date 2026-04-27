@@ -45,21 +45,40 @@ hub_load_env() {
         unset "$_k"
     done
 
+    # Walk up collecting all .env files. Source them outermost-LAST so the
+    # outer .env (overlay root) wins over any inner .env (e.g. one shipped
+    # inside a vendored subtree). This gives team-overlay installs the
+    # expected behavior — team .env at the repo root overrides any leftover
+    # values inside integrations/sagos95-ai-hub/.env, while still picking
+    # up subtree-only keys (e.g. KUSTO_CLUSTER, TIME_BASE_URL) when the
+    # overlay doesn't redefine them.
+    local found=()
     local dir="$start"
     while [[ "$dir" != "/" && -n "$dir" ]]; do
         if [[ -f "$dir/.env" ]]; then
-            set -a
-            # shellcheck disable=SC1090,SC1091
-            source "$dir/.env"
-            set +a
-            export HUB_ENV_FILE="$dir/.env"
-            export HUB_OVERLAY_ROOT="$dir"
-            return 0
+            found=("$dir/.env" "${found[@]}")
         fi
         dir="$(dirname "$dir")"
     done
 
-    return 1
+    if [[ ${#found[@]} -eq 0 ]]; then
+        return 1
+    fi
+
+    # Source innermost first, outermost last → outermost wins.
+    local _f
+    for _f in "${found[@]}"; do
+        set -a
+        # shellcheck disable=SC1090,SC1091
+        source "$_f"
+        set +a
+    done
+
+    # Overlay root = directory of the OUTERMOST .env (last in `found`).
+    local outermost="${found[-1]}"
+    export HUB_ENV_FILE="$outermost"
+    export HUB_OVERLAY_ROOT="${outermost%/.env}"
+    return 0
 }
 
 # Resolve the team overlay root: the directory whose .env was sourced by
