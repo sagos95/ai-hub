@@ -257,3 +257,7 @@ claude /ai-hub:create-command my-integration my-command
 ## Лицензия
 
 MIT
+
+## Мотивирующая картинка
+<img width="983" height="941" alt="image" src="https://github.com/user-attachments/assets/f2a2f329-9a36-4a5b-941b-3e09f26a4610" />
+
