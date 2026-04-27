@@ -9,9 +9,18 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-ENV_FILE="$ROOT_DIR/.env"
-ENV_LOCAL_FILE="$ROOT_DIR/.env.local"
+SUBTREE_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+# shellcheck source=load-env.sh
+source "$SCRIPT_DIR/load-env.sh"
+
+# Walk up to find an existing .env. If none exists yet, default to the
+# git toplevel (which in an overlay setup is the team repo root, and in a
+# standalone ai-hub clone is the ai-hub root itself).
+hub_load_env "$SCRIPT_DIR" || true
+
+WRITE_ROOT="${HUB_OVERLAY_ROOT:-$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null || echo "$SUBTREE_ROOT")}"
+ENV_FILE="${HUB_ENV_FILE:-$WRITE_ROOT/.env}"
+ENV_LOCAL_FILE="$WRITE_ROOT/.env.local"
 
 # Known variable groups
 COMPANY_CONFIG=(KAITEN_DOMAIN TIME_BASE_URL BUILDIN_SPACE_ID)
@@ -19,12 +28,10 @@ COMPANY_OPTIONAL=(GENIE_HOST GENIE_SPACE_ID)
 PERSONAL_TOKENS=(KAITEN_TOKEN BUILDIN_UI_TOKEN TIME_TOKEN)
 PERSONAL_OPTIONAL=(GENIE_TOKEN TIME_BOT_TOKEN)
 
+# Re-load env (subcommands may have written to it). Delegates to the
+# shared helper so secret stripping rules stay consistent.
 load_env() {
-    if [[ -f "$ENV_FILE" ]]; then
-        set -a
-        source "$ENV_FILE"
-        set +a
-    fi
+    hub_load_env "$SCRIPT_DIR" || true
 }
 
 check_var() {

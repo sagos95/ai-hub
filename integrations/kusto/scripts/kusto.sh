@@ -5,18 +5,16 @@
 # Requirements: Azure CLI (az), curl, python3
 #   az login
 #
-# Configuration via .env.local:
+# Configuration via .env in overlay root:
 #   KUSTO_CLUSTER=https://your-cluster.region.kusto.windows.net
 #   KUSTO_DATABASE=your-database
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-
-if [[ -f "$ROOT_DIR/.env.local" ]]; then
-    set -a; source "$ROOT_DIR/.env.local"; set +a
-fi
+# shellcheck source=../../hub-meta/scripts/load-env.sh
+source "$SCRIPT_DIR/../../hub-meta/scripts/load-env.sh"
+hub_load_env "$SCRIPT_DIR"
 
 for cmd in az curl python3; do
     if ! command -v "$cmd" &>/dev/null; then
@@ -26,13 +24,13 @@ for cmd in az curl python3; do
 done
 
 if [[ -z "$KUSTO_CLUSTER" ]]; then
-    echo "Error: KUSTO_CLUSTER must be set in .env.local" >&2
+    echo "Error: KUSTO_CLUSTER must be set in .env" >&2
     echo "Example: KUSTO_CLUSTER=https://mycluster.westeurope.kusto.windows.net" >&2
     exit 1
 fi
 
 if [[ -z "$KUSTO_DATABASE" ]]; then
-    echo "Error: KUSTO_DATABASE must be set in .env.local" >&2
+    echo "Error: KUSTO_DATABASE must be set in .env" >&2
     exit 1
 fi
 

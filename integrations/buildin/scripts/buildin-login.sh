@@ -9,16 +9,16 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-ENV_FILE="$ROOT_DIR/.env"
-BUILDIN_BASE_URL="https://buildin.ai"
+SUBTREE_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+# shellcheck source=../../hub-meta/scripts/load-env.sh
+source "$SUBTREE_ROOT/integrations/hub-meta/scripts/load-env.sh"
+hub_load_env "$SCRIPT_DIR" || true
 
-# Load existing env
-if [[ -f "$ENV_FILE" ]]; then
-    set -a
-    source "$ENV_FILE"
-    set +a
-fi
+# Where to write the token: prefer the .env that was sourced (overlay root).
+# If none was found (fresh setup), default to the overlay/subtree root we
+# detect via git, falling back to subtree root.
+ENV_FILE="${HUB_ENV_FILE:-$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null || echo "$SUBTREE_ROOT")/.env}"
+BUILDIN_BASE_URL="https://buildin.ai"
 
 verify_token() {
     local TOKEN="$1"
@@ -74,7 +74,7 @@ save_token_to_env() {
 
 cmd_cookie() {
     local requested_browser="${1:-auto}"
-    local extractor="$ROOT_DIR/integrations/hub-meta/scripts/browser-cookie-extract.py"
+    local extractor="$SUBTREE_ROOT/integrations/hub-meta/scripts/browser-cookie-extract.py"
 
     if [[ ! -f "$extractor" ]]; then
         echo "error:extractor_missing ($extractor)" >&2

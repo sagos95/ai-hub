@@ -11,11 +11,15 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+# shellcheck source=../../hub-meta/scripts/load-env.sh
+source "$SCRIPT_DIR/../../hub-meta/scripts/load-env.sh"
+hub_load_env "$SCRIPT_DIR" || true
 
-# Auto-read PROPERTY_ID from team-config.json if not set via env
-if [[ -z "${PROPERTY_ID:-}" && -f "$ROOT_DIR/team-config.json" ]]; then
-    PROPERTY_ID=$(jq -r '.kaiten.property_id_affected_services // empty' "$ROOT_DIR/team-config.json" 2>/dev/null || true)
+# Auto-read PROPERTY_ID from team-config.json (lives at the overlay root,
+# next to .env). Falls back silently if no team config is present.
+TEAM_CONFIG="${HUB_OVERLAY_ROOT:-}/team-config.json"
+if [[ -z "${PROPERTY_ID:-}" && -f "$TEAM_CONFIG" ]]; then
+    PROPERTY_ID=$(jq -r '.kaiten.property_id_affected_services // empty' "$TEAM_CONFIG" 2>/dev/null || true)
 fi
 PROPERTY_ID="${PROPERTY_ID:-}"
 
