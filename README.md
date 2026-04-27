@@ -16,7 +16,7 @@ https://raw.githubusercontent.com/sagos95/ai-hub/main/INSTALL.md
 
 ## Установка
 
-### Через marketplace (Claude Code, GitHub Copilot, ...)
+### Через marketplace (Claude Code, GitHub Copilot, Cursor, ...)
 
 AI Hub опубликован как marketplace-плагин. Любой AI-агент, поддерживающий marketplace (Claude Code, GitHub Copilot и другие), может установить отдельные плагины или весь набор через свой стандартный механизм.
 
