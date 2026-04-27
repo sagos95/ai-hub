@@ -75,7 +75,9 @@ hub_load_env() {
     done
 
     # Overlay root = directory of the OUTERMOST .env (last in `found`).
-    local outermost="${found[-1]}"
+    # Use len-1 indexing instead of ${found[-1]} for bash 3.x compatibility
+    # (macOS ships /bin/bash 3.2 by default).
+    local outermost="${found[$((${#found[@]} - 1))]}"
     export HUB_ENV_FILE="$outermost"
     export HUB_OVERLAY_ROOT="${outermost%/.env}"
     return 0
