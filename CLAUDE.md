@@ -36,6 +36,7 @@ bash integrations/hub-meta/scripts/setup.sh next
 │   ├── test-factory/             # Генерация тестов
 │   ├── reverse-product-analysis/ # Реверс-анализ по коду
 │   ├── holst/                    # Инструменты для графических досок
+│   ├── kusto/                    # Azure Data Explorer (логи)     → README.md
 │   ├── hub-meta/                 # create-command, skill-retro
 │   └── code-review/              # Code review workflow
 └── .env                          # Токены (не в git)
@@ -61,6 +62,7 @@ Claude Code CLI ищет slash-команды в `.claude/commands/`. Коман
   time-login.md                  → ../../../integrations/time/commands/time-login.md
   code-review.md                 → ../../../integrations/code-review/commands/code-review.md
   retro.md                       → ../../../integrations/hub-meta/commands/retro.md
+  kusto-query.md                 → ../../../integrations/kusto/commands/kusto-query.md
 ```
 
 **Почему симлинки, а не копии:**

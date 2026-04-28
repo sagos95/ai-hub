@@ -1,0 +1,1 @@
+../../../integrations/kusto/commands/kusto-query.md

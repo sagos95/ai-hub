@@ -6,17 +6,13 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-ENV_FILE="$ROOT_DIR/.env"
-TIME_BASE_URL="${TIME_BASE_URL:-https://your-company.time-messenger.ru}"
+SUBTREE_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+# shellcheck source=../../hub-meta/scripts/load-env.sh
+source "$SUBTREE_ROOT/integrations/hub-meta/scripts/load-env.sh"
+hub_load_env "$SCRIPT_DIR" || true
 
-# Load existing env (for TIME_BASE_URL override)
-if [[ -f "$ENV_FILE" ]]; then
-    set -a
-    source "$ENV_FILE"
-    set +a
-    TIME_BASE_URL="${TIME_BASE_URL:-https://your-company.time-messenger.ru}"
-fi
+ENV_FILE="${HUB_ENV_FILE:-$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null || echo "$SUBTREE_ROOT")/.env}"
+TIME_BASE_URL="${TIME_BASE_URL:-https://your-company.time-messenger.ru}"
 
 # Read token from clipboard
 TOKEN=$(pbpaste 2>/dev/null | tr -d '[:space:]')

@@ -1,7 +1,7 @@
 {
   "name": "ai-hub",
-  "version": "1.9.0",
-  "description": "AI skills for Claude Code — integrations with Kaiten, Time, Buildin, Genie, Holst, TestOps + automation workflows (spike research, product discovery, testing, code review)",
+  "version": "1.10.0",
+  "description": "AI skills and integrations with Kaiten, Time, Buildin, Genie, Holst, Kusto, TestOps + automation workflows (spike research, product discovery, testing, code review)",
   "author": {
     "name": "sagos95"
   },
@@ -15,6 +15,8 @@
     "product-discovery",
     "test-generation",
     "reverse-engineering",
-    "code-review"
+    "code-review",
+    "kusto",
+    "azure-data-explorer"
   ]
 }

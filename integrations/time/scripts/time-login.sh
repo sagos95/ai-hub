@@ -10,13 +10,12 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-ENV_FILE="$ROOT_DIR/.env"
+SUBTREE_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+# shellcheck source=../../hub-meta/scripts/load-env.sh
+source "$SUBTREE_ROOT/integrations/hub-meta/scripts/load-env.sh"
+hub_load_env "$SCRIPT_DIR" || true
 
-# Load .env so TIME_BASE_URL is available for cookie extraction
-if [[ -f "$ENV_FILE" ]]; then
-    set -a; source "$ENV_FILE"; set +a
-fi
+ENV_FILE="${HUB_ENV_FILE:-$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null || echo "$SUBTREE_ROOT")/.env}"
 TIME_BASE_URL="${TIME_BASE_URL:-https://your-company.time-messenger.ru}"
 
 save_token() {
@@ -143,7 +142,7 @@ login_sso() {
 
 cmd_cookie() {
     local requested_browser="${1:-auto}"
-    local extractor="$ROOT_DIR/integrations/hub-meta/scripts/browser-cookie-extract.py"
+    local extractor="$SUBTREE_ROOT/integrations/hub-meta/scripts/browser-cookie-extract.py"
 
     if [[ ! -f "$extractor" ]]; then
         echo "error:extractor_missing ($extractor)" >&2
