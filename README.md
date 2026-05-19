@@ -29,12 +29,13 @@ claude /plugin marketplace add sagos95/ai-hub
 # Установить все инструменты:
 claude /plugin install buildin@ai-hub code-review@ai-hub discovery@ai-hub \
   genie@ai-hub holst@ai-hub hub-meta@ai-hub kaiten@ai-hub \
-  reverse-product-analysis@ai-hub spike@ai-hub test-factory@ai-hub time@ai-hub
+  reverse-product-analysis@ai-hub spike@ai-hub test-factory@ai-hub testops@ai-hub time@ai-hub
 
 # Установить конкретный плагин:
 claude /plugin install spike@ai-hub
 claude /plugin install kaiten@ai-hub
 claude /plugin install time@ai-hub
+claude /plugin install testops@ai-hub
 ```
 
 **GitHub Copilot CLI:**
@@ -46,13 +47,14 @@ copilot plugin marketplace add sagos95/ai-hub
 # Установить все инструменты:
 copilot plugin install buildin@ai-hub code-review@ai-hub discovery@ai-hub \
   genie@ai-hub holst@ai-hub hub-meta@ai-hub kaiten@ai-hub \
-  reverse-product-analysis@ai-hub spike@ai-hub test-factory@ai-hub time@ai-hub
+  reverse-product-analysis@ai-hub spike@ai-hub test-factory@ai-hub testops@ai-hub time@ai-hub
 
 # Установить конкретный плагин:
 copilot plugin install spike@ai-hub
+copilot plugin install testops@ai-hub
 ```
 
-Доступные плагины: `buildin`, `code-review`, `discovery`, `genie`, `holst`, `hub-meta`, `kaiten`, `reverse-product-analysis`, `spike`, `test-factory`, `time`.
+Доступные плагины: `buildin`, `code-review`, `discovery`, `genie`, `holst`, `hub-meta`, `kaiten`, `reverse-product-analysis`, `spike`, `test-factory`, `testops`, `time`.
 
 ### Через git clone или zip + setup
 
@@ -87,6 +89,7 @@ bash integrations/hub-meta/scripts/setup.sh next
 | `BUILDIN_UI_TOKEN` | `/ai-hub:buildin-login` — browser SSO |
 | `TIME_TOKEN` | `/ai-hub:time-login` — browser SSO |
 | `GENIE_TOKEN` | Опционально, получить у админа данных |
+| `TESTOPS_URL`, `TESTOPS_TOKEN` | Allure TestOps → Settings → API Tokens → Generate Token |
 
 Скиллы без токенов (ai-test, rpa-analyze, retro, code-review и т.д.) работают сразу.
 
@@ -112,6 +115,7 @@ bash integrations/hub-meta/scripts/setup.sh next
 │   ├── discovery/                #   Product Discovery (9 фаз)
 │   ├── reverse-product-analysis/ #   Реверс-анализ проекта с полным описанием его функционала и сущностей
 │   ├── test-factory/             #   Скилл для создания тестов
+│   ├── testops/                  #   Allure TestOps (тест-кейсы, запуски, дефекты)
 │   ├── code-review/              #   Code review workflow
 │   └── hub-meta/                 #   Мета-команды хаба (используется для разработки самого хаба)
 ├── team-config.example.json      # Шаблон конфига команды
@@ -150,6 +154,8 @@ integrations/
 - **[Holst](integrations/holst/)** `/ai-hub:holst-export` — экспорт данных с визуальных досок Holst.so (аналог Miro). Фреймы, стикеры, тексты — для превращения брейнштормов в структурированные документы.
 
 - **[Genie](integrations/genie/)** — запросы к DWH на естественном языке через Databricks Genie. Валидация гипотез, сбор метрик, анализ данных прямо в потоке работы.
+
+- **[TestOps](integrations/testops/)** `/ai-hub:testops` — интеграция с Allure TestOps. Поиск тест-кейсов (AQL), просмотр запусков, дефектов, статистики. Создание и обновление тест-кейсов через API.
 
 ### Автоматизация процессов
 
@@ -257,7 +263,3 @@ claude /ai-hub:create-command my-integration my-command
 ## Лицензия
 
 MIT
-
-## Мотивирующая картинка
-<img width="983" height="941" alt="image" src="https://github.com/user-attachments/assets/f2a2f329-9a36-4a5b-941b-3e09f26a4610" />
-
