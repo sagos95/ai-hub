@@ -14,7 +14,7 @@ setup() {
 }
 
 @test "permalink URL yields post_id" {
-    result=$(extract_post_id "https://dodobrands.time-messenger.ru/dodo-brands/pl/18grnyo6dxxnf6y46qp8eo5bze")
+    result=$(extract_post_id "https://example.time-messenger.ru/example-team/pl/18grnyo6dxxnf6y46qp8eo5bze")
     [ "$result" = "18grnyo6dxxnf6y46qp8eo5bze" ]
 }
 
