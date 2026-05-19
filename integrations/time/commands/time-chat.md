@@ -66,18 +66,35 @@ integrations/time/scripts/time-channels.sh find <team_id> "<term>"
 
 **Прочитать сообщения канала:**
 1. Найди канал: `time-channels.sh find <team_id> "<name>"`
-2. Получи сообщения: `time-messages.sh posts <channel_id> 0 20`
-3. Резолви usernames: `time-messages.sh user <user_id>`
-4. Форматируй: `[YYYY-MM-DD HH:MM] @username: message`
+2. Получи сообщения с авторами одной командой: `time-messages.sh posts <channel_id> 0 20 --resolve-users`
+   — флаг `--resolve-users` подмешивает `user` объект рядом с `user_id` через батч-запрос `POST /users/ids` (кэш 7 дней).
+3. Форматируй: `[YYYY-MM-DD HH:MM] @username: message`
 
-**Прочитать тред:**
+**Прочитать тред (по post_id или permalink):**
 ```bash
 integrations/time/scripts/time-messages.sh thread <post_id>
+integrations/time/scripts/time-messages.sh thread "https://<host>/<team>/pl/<post_id>" --resolve-users
+```
+
+**Прочитать один пост (по post_id или permalink):**
+```bash
+integrations/time/scripts/time-messages.sh get "https://<host>/<team>/pl/<post_id>"
 ```
 
 **Найти сообщения:**
 ```bash
-integrations/time/scripts/time-messages.sh search <team_id> "<terms>"
+integrations/time/scripts/time-messages.sh search <team_id> "<terms>" --resolve-users
+```
+
+**Direct messages с пользователем (auto-enriched):**
+```bash
+integrations/time/scripts/time-messages.sh dm @<username> [limit]
+```
+
+**Список / поиск пользователей:**
+```bash
+integrations/time/scripts/time-messages.sh users               # первые 50
+integrations/time/scripts/time-messages.sh users "<term>"      # поиск
 ```
 
 ⚠️ **Ограничения Mattermost search** — учитывай ДО того, как делать вывод «ничего не найдено»:
