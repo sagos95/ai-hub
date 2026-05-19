@@ -1,0 +1,1 @@
+../../../integrations/buildin-bot-api/commands/buildin-bot-read.md

@@ -28,7 +28,8 @@ bash integrations/hub-meta/scripts/setup.sh next
 ```
 ├── integrations/
 │   ├── kaiten/                   # Kaiten API клиент              → README.md
-│   ├── buildin/                  # Buildin wiki клиент            → README.md
+│   ├── buildin/                  # Buildin wiki клиент (UI API)   → README.md
+│   ├── buildin-bot-api/          # Buildin wiki клиент (Bot API)  → README.md
 │   ├── time/                     # Time (Mattermost) клиент       → README.md
 │   ├── genie/                    # Databricks Genie (аналитика)   → README.md
 │   ├── spike/                    # Spike-исследования             → README.md
@@ -54,6 +55,7 @@ Claude Code CLI ищет slash-команды в `.claude/commands/`. Коман
   buildin-read.md                → ../../../integrations/buildin/commands/read-page.md
   buildin-publish.md             → ../../../integrations/buildin/commands/publish-page.md
   buildin-login.md               → ../../../integrations/buildin/commands/buildin-login.md
+  buildin-bot-read.md            → ../../../integrations/buildin-bot-api/commands/buildin-bot-read.md
   setup.md                       → ../../../integrations/hub-meta/commands/setup.md
   create-command.md              → ../../../integrations/hub-meta/commands/create-command.md
   spike.md                       → ../../../integrations/spike/commands/spike.md
@@ -82,7 +84,8 @@ Claude Code CLI ищет slash-команды в `.claude/commands/`. Коман
 |----------|--------|--------|--------------------|
 | **Kaiten** — таск-трекер (аналог Jira/Linear) | скрипты `integrations/kaiten/scripts/` | скрипты `integrations/kaiten/` | Карточки, комментарии, чек-листы, перемещение по колонкам, работа с досками |
 | **Time** — мессенджер (аналог Slack), на базе Mattermost | `/ai-hub:time-chat` | `/ai-hub:time-chat` | Чтение тредов/каналов для контекста, отправка статусов и вопросов |
-| **Buildin** — база знаний (аналог Notion) | `/ai-hub:buildin-read` или скрипты `integrations/buildin/scripts/buildin-pages.sh read <url\|id>` | `/ai-hub:buildin-publish` | Чтение документации, публикация результатов исследований. Логин: `/ai-hub:buildin-login` |
+| **Buildin (UI API)** — база знаний (аналог Notion) | `/ai-hub:buildin-read` или скрипты `integrations/buildin/scripts/buildin-pages.sh read <url\|id>` | `/ai-hub:buildin-publish` | Чтение документации, публикация результатов. JWT-токен из Google SSO, видит все страницы пользователя. Логин: `/ai-hub:buildin-login` |
+| **Buildin (Bot API)** — база знаний (Official API) | `/ai-hub:buildin-bot-read` или скрипты `integrations/buildin-bot-api/scripts/buildin-bot-pages.sh read <url\|id>` | скрипты `integrations/buildin-bot-api/scripts/buildin-bot-pages.sh create\|update` | Чтение/запись через бот-токен. Видит только расшаренные боту страницы. Notion-подобный REST API |
 | **Holst** — графические доски (аналог Miro) | `/ai-hub:holst-export` | — | Экспорт данных с визуальных досок (фреймы, стикеры, тексты) |
 
 ## Team Config
