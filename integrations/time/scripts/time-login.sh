@@ -11,8 +11,15 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SUBTREE_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+# Source hub-meta/scripts/load-env.sh from either marketplace layout
+# (<root>/integrations/<plugin>/scripts/) or Claude Code plugin cache
+# (<cache>/<marketplace>/<plugin>/<version>/scripts/, located via CLAUDE_PLUGIN_ROOT).
+_hub_load_env_sh="$SCRIPT_DIR/../../hub-meta/scripts/load-env.sh"
+[[ -f "$_hub_load_env_sh" ]] || _hub_load_env_sh=$(ls "${CLAUDE_PLUGIN_ROOT:-/dev/null}"/../../hub-meta/*/scripts/load-env.sh 2>/dev/null | head -1)
+[[ -f "$_hub_load_env_sh" ]] || { echo "Error: hub-meta/scripts/load-env.sh not found (marketplace and plugin-cache layouts checked)" >&2; exit 1; }
 # shellcheck source=../../hub-meta/scripts/load-env.sh
-source "$SUBTREE_ROOT/integrations/hub-meta/scripts/load-env.sh"
+source "$_hub_load_env_sh"
+unset _hub_load_env_sh
 hub_load_env "$SCRIPT_DIR" || true
 
 ENV_FILE="${HUB_ENV_FILE:-$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null || echo "$SUBTREE_ROOT")/.env}"
@@ -142,7 +149,9 @@ login_sso() {
 
 cmd_cookie() {
     local requested_browser="${1:-auto}"
-    local extractor="$SUBTREE_ROOT/integrations/hub-meta/scripts/browser-cookie-extract.py"
+    local extractor
+    extractor=$(hub_resolve_plugin_path hub-meta scripts/browser-cookie-extract.py) \
+        || extractor="$SUBTREE_ROOT/integrations/hub-meta/scripts/browser-cookie-extract.py"
 
     if [[ ! -f "$extractor" ]]; then
         echo "error:extractor_missing ($extractor)" >&2

@@ -96,3 +96,41 @@ hub_overlay_root() {
     fi
     return 1
 }
+
+# Resolve a file inside a sibling plugin, supporting both layouts:
+#   1. Marketplace / source: <root>/integrations/<plugin>/<rel>
+#   2. Claude Code plugin cache: <cache>/<marketplace>/<plugin>/<version>/<rel>
+#      (located via $CLAUDE_PLUGIN_ROOT)
+#
+# Usage:
+#   path=$(hub_resolve_plugin_path hub-meta scripts/browser-cookie-extract.py) \
+#       || { echo "not found" >&2; exit 1; }
+#
+# Prints the absolute path to stdout on success, returns 1 if not found.
+hub_resolve_plugin_path() {
+    local plugin="$1"
+    local rel="$2"
+    [[ -z "$plugin" || -z "$rel" ]] && return 1
+
+    # 1. Marketplace / source layout — relative to SUBTREE_ROOT if set.
+    if [[ -n "${SUBTREE_ROOT:-}" && -f "$SUBTREE_ROOT/integrations/$plugin/$rel" ]]; then
+        echo "$SUBTREE_ROOT/integrations/$plugin/$rel"
+        return 0
+    fi
+
+    # 2. Claude Code plugin cache: <cache>/<marketplace>/<plugin>/<version>/<rel>.
+    # $CLAUDE_PLUGIN_ROOT points at the current plugin's versioned dir, so its
+    # grandparent is <cache>/<marketplace>/.
+    if [[ -n "${CLAUDE_PLUGIN_ROOT:-}" ]]; then
+        local marketplace_cache
+        marketplace_cache="$(cd "$CLAUDE_PLUGIN_ROOT/../.." 2>/dev/null && pwd)" || return 1
+        local found
+        found=$(find "$marketplace_cache/$plugin" -maxdepth 4 -path "*/$rel" -type f 2>/dev/null | head -1)
+        if [[ -n "$found" ]]; then
+            echo "$found"
+            return 0
+        fi
+    fi
+
+    return 1
+}

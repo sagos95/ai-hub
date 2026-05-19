@@ -11,8 +11,15 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Source hub-meta/scripts/load-env.sh from either marketplace layout
+# (<root>/integrations/<plugin>/scripts/) or Claude Code plugin cache
+# (<cache>/<marketplace>/<plugin>/<version>/scripts/, located via CLAUDE_PLUGIN_ROOT).
+_hub_load_env_sh="$SCRIPT_DIR/../../hub-meta/scripts/load-env.sh"
+[[ -f "$_hub_load_env_sh" ]] || _hub_load_env_sh=$(ls "${CLAUDE_PLUGIN_ROOT:-/dev/null}"/../../hub-meta/*/scripts/load-env.sh 2>/dev/null | head -1)
+[[ -f "$_hub_load_env_sh" ]] || { echo "Error: hub-meta/scripts/load-env.sh not found (marketplace and plugin-cache layouts checked)" >&2; exit 1; }
 # shellcheck source=../../hub-meta/scripts/load-env.sh
-source "$SCRIPT_DIR/../../hub-meta/scripts/load-env.sh"
+source "$_hub_load_env_sh"
+unset _hub_load_env_sh
 hub_load_env "$SCRIPT_DIR"
 
 BUILDIN_BASE_URL="https://buildin.ai"
