@@ -1,0 +1,1 @@
+../../../integrations/kaiten/commands/kaiten-board.md
