@@ -65,6 +65,8 @@ Claude Code CLI ищет slash-команды в `.claude/commands/`. Коман
   code-review.md                 → ../../../integrations/code-review/commands/code-review.md
   retro.md                       → ../../../integrations/hub-meta/commands/retro.md
   kusto-query.md                 → ../../../integrations/kusto/commands/kusto-query.md
+  kaiten-card.md                 → ../../../integrations/kaiten/commands/kaiten-card.md
+  kaiten-board.md                → ../../../integrations/kaiten/commands/kaiten-board.md
 ```
 
 **Почему симлинки, а не копии:**
