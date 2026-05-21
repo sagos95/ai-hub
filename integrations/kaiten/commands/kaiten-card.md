@@ -1,13 +1,20 @@
 ---
 name: kaiten-card
 description: Read, comment, move, or update a Kaiten card by URL or ID
-argument-hint: "<card_url_or_id> [action: read|comment|move|assign]"
 allowed-tools: ["Bash", "Read", "Glob", "Grep", "AskUserQuestion"]
 ---
 
 # Kaiten Card — работа с карточкой
 
 Читает, комментирует, перемещает и обновляет карточки Kaiten по ссылке или ID.
+
+## Trigger
+
+Активируй при любом из условий:
+
+- URL карточки: `https://<domain>.kaiten.ru/space/<space_id>/card/<card_id>`
+- Запрос вида «открой карточку», «посмотри задачу», «прокомментируй карточку» + ID или ссылка
+- Запрос переместить/закрыть/назначить карточку в Kaiten
 
 ## Константы
 

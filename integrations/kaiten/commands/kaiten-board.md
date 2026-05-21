@@ -1,13 +1,20 @@
 ---
 name: kaiten-board
 description: Export or inspect a Kaiten board — columns, cards, structure
-argument-hint: "<board_id_or_url>"
 allowed-tools: ["Bash", "Read", "Write", "Glob", "Grep", "AskUserQuestion"]
 ---
 
 # Kaiten Board — экспорт и просмотр доски
 
 Экспортирует карточки и структуру доски Kaiten в Markdown или выводит сводку.
+
+## Trigger
+
+Активируй при любом из условий:
+
+- URL доски: `https://<domain>.kaiten.ru/space/<space_id>/board/<board_id>`
+- Запрос вида «покажи доску», «экспортируй спринт», «что в бэклоге» + ссылка или board_id
+- Запрос получить список карточек / колонок на доске Kaiten
 
 ## Константы
 
