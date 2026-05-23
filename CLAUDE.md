@@ -90,6 +90,8 @@ Claude Code CLI ищет slash-команды в `.claude/commands/`. Коман
 | **Buildin (Bot API)** — база знаний (Official API) | `/ai-hub:buildin-bot-read` или скрипты `integrations/buildin-bot-api/scripts/buildin-bot-pages.sh read <url\|id>` | скрипты `integrations/buildin-bot-api/scripts/buildin-bot-pages.sh create\|update` | Чтение/запись через бот-токен. Видит только расшаренные боту страницы. Notion-подобный REST API |
 | **Holst** — графические доски (аналог Miro) | `/ai-hub:holst-export` | — | Экспорт данных с визуальных досок (фреймы, стикеры, тексты) |
 
+**Выбор Buildin-интеграции:** если `BUILDIN_UI_TOKEN` есть в `.env` — используй **UI API** (видит все страницы). Если нет — используй **Bot API** (`BUILDIN_BOT_TOKEN`). Не пытайся логиниться через `/ai-hub:buildin-login` автоматически — он требует участия пользователя.
+
 ## Team Config
 
 **При любом вопросе о Kaiten-досках, карточках, колонках, каналах Time или страницах Buildin — первым делом проверь наличие `team-config.json` в корне репозитория.** Если файл есть — используй ID досок, колонок и каналов оттуда. Не спрашивай пользователя о board_id/column_id, если они есть в конфиге.
