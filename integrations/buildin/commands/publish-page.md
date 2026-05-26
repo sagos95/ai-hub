@@ -61,9 +61,10 @@ bash integrations/buildin/scripts/buildin-pages.sh create "<parent_page_id>" "<t
 1. Преобразуй markdown/текст в блоки Buildin UI API:
 
    Block types (числовые):
-   - `5` — paragraph (текст с segments)
-   - `6` — heading (level: 1/2/3)
+   - `1` — paragraph (обычный текст; не todo/не checkbox)
+   - `7` — heading (level: 1/2/3)
    - `4` — bulleted list item
+   - `3` — todo list item (используй только когда нужен checkbox)
    - `25` — code block
    - `13` — callout
    - `26` — divider
@@ -71,6 +72,11 @@ bash integrations/buildin/scripts/buildin-pages.sh create "<parent_page_id>" "<t
    Segment format:
    ```json
    {"type": 0, "text": "Hello", "enhancer": {"bold": true}}
+   ```
+
+   Inline code segment:
+   ```json
+   {"type": 0, "text": "BasisName", "enhancer": {"code": true}}
    ```
 
    Link segment (type 3):
@@ -85,12 +91,12 @@ bash integrations/buildin/scripts/buildin-pages.sh create "<parent_page_id>" "<t
 
    Каждый элемент массива:
    ```json
-   {"type": 5, "data": {"segments": [{"type": 0, "text": "Hello", "enhancer": {}}]}}
+   {"type": 1, "data": {"segments": [{"type": 0, "text": "Hello", "enhancer": {}}]}}
    ```
 
    Heading:
    ```json
-   {"type": 6, "data": {"level": 2, "segments": [{"type": 0, "text": "Title", "enhancer": {}}]}}
+   {"type": 7, "data": {"level": 2, "segments": [{"type": 0, "text": "Title", "enhancer": {}}]}}
    ```
 
 ### Фаза 5: Результат
