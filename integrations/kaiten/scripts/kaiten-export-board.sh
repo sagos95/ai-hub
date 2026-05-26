@@ -38,7 +38,13 @@ if [[ -z "$1" ]]; then
 fi
 
 BOARD_ID="$1"
-OUTPUT_FILE="${2:-board_${BOARD_ID}.md}"
+if [[ -n "${2:-}" ]]; then
+    OUTPUT_FILE="$2"
+else
+    TEMP_DIR="${HUB_OVERLAY_ROOT:-.}/Temp"
+    mkdir -p "$TEMP_DIR"
+    OUTPUT_FILE="${TEMP_DIR}/board_${BOARD_ID}.md"
+fi
 
 echo "Fetching board info..." >&2
 
