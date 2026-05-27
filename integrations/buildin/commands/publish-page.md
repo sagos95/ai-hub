@@ -85,8 +85,15 @@ bash integrations/buildin/scripts/buildin-pages.sh create "<parent_page_id>" "<t
    ```
 
 2. Отправляй блоки батчами:
+
+   **В конец страницы:**
    ```bash
    bash integrations/buildin/scripts/buildin-pages.sh append-blocks "<page_id>" '<json_array>'
+   ```
+
+   **После конкретного блока** (нужен `block_id` существующего блока — получи через `get-blocks`):
+   ```bash
+   bash integrations/buildin/scripts/buildin-pages.sh insert-blocks-after "<page_id>" "<after_block_id>" '<json_array>'
    ```
 
    Каждый элемент массива:
@@ -97,6 +104,12 @@ bash integrations/buildin/scripts/buildin-pages.sh create "<parent_page_id>" "<t
    Heading:
    ```json
    {"type": 7, "data": {"level": 2, "segments": [{"type": 0, "text": "Title", "enhancer": {}}]}}
+   ```
+
+   Получить block_id нужного блока:
+   ```bash
+   bash integrations/buildin/scripts/buildin-pages.sh get-blocks "<page_id>" > /tmp/blocks.json
+   # затем в Python: json.load(open('/tmp/blocks.json')) — поле "uuid" каждого блока
    ```
 
 ### Фаза 5: Результат
