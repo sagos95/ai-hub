@@ -304,8 +304,9 @@ title = page.get('title', '(untitled)')
 print(f'# {title}')
 print()
 
-# Block types: 0=page, 1=text(empty), 4=bulleted, 5=text, 6=heading, 7=sub-heading,
-#              13=callout, 14=image, 21=bookmark, 25=code, 26=divider, 28=table-row
+# Block types: 0=page, 1=paragraph, 3=todo, 4=bulleted, 5=numbered, 6=toggle,
+#              7=heading, 9=divider, 12=quote, 13=callout, 14=image,
+#              21=bookmark, 23=equation, 25=code
 def rt(segments):
     parts = []
     for s in (segments or []):
@@ -343,18 +344,25 @@ def render(node_ids, indent=0):
                 print()
             else:
                 print()
+        elif t == 3:
+            checked = '☑' if d.get('checked') else '☐'
+            print(f'{pfx}{checked} {text}')
         elif t == 5:
-            print(f'{pfx}{text}')
-            print()
+            print(f'{pfx}1. {text}')
         elif t == 4:
             print(f'{pfx}- {text}')
         elif t == 6:
-            h = '#' * min(level, 3)
-            print(f'{pfx}{h} {text}')
+            print(f'{pfx}▶ {text}')
             print()
         elif t == 7:
             h = '#' * min(level + 1, 4)
             print(f'{pfx}{h} {text}')
+            print()
+        elif t == 9:
+            print(f'{pfx}---')
+            print()
+        elif t == 12:
+            print(f'{pfx}> {text}')
             print()
         elif t == 13:
             icon = d.get('icon', {}).get('value', '')
@@ -369,14 +377,14 @@ def render(node_ids, indent=0):
             link = d.get('link', '')
             print(f'{pfx}[{text or link}]({link})')
             print()
+        elif t == 23:
+            print(f'{pfx}$$ {text} $$')
+            print()
         elif t == 25:
             lang = d.get('language', '')
             print(f'{pfx}\`\`\`{lang}')
             print(f'{pfx}{text}')
             print(f'{pfx}\`\`\`')
-            print()
-        elif t == 26:
-            print(f'{pfx}---')
             print()
         elif text:
             print(f'{pfx}{text}')
@@ -412,7 +420,7 @@ ops = []
 
 for block in blocks:
     block_id = str(uuid.uuid4())
-    block_type = block.get('type', 5)
+    block_type = block.get('type', 1)
     block_data = block.get('data', {})
 
     ops.append({
@@ -540,7 +548,7 @@ print(json.dumps(ops))
         BLOCKS=$(python3 -c "
 import json, sys
 text = sys.argv[1]
-blocks = [{'type': 5, 'data': {'segments': [{'type': 0, 'text': text, 'enhancer': {}}]}}]
+blocks = [{'type': 1, 'data': {'segments': [{'type': 0, 'text': text, 'enhancer': {}}]}}]
 print(json.dumps(blocks))
 " "$TEXT")
 

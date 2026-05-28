@@ -62,12 +62,16 @@ bash integrations/buildin/scripts/buildin-pages.sh create "<parent_page_id>" "<t
 
    Block types (числовые):
    - `1` — paragraph (обычный текст; не todo/не checkbox)
-   - `7` — heading (level: 1/2/3)
-   - `4` — bulleted list item
    - `3` — todo list item (используй только когда нужен checkbox)
-   - `25` — code block
+   - `4` — bulleted list item
+   - `5` — numbered list item
+   - `6` — toggle/collapsible
+   - `7` — heading (level: 1/2/3)
+   - `9` — divider
+   - `12` — quote/blockquote
    - `13` — callout
-   - `26` — divider
+   - `23` — equation (LaTeX)
+   - `25` — code block
 
    Segment format:
    ```json
@@ -104,6 +108,21 @@ bash integrations/buildin/scripts/buildin-pages.sh create "<parent_page_id>" "<t
    Heading:
    ```json
    {"type": 7, "data": {"level": 2, "segments": [{"type": 0, "text": "Title", "enhancer": {}}]}}
+   ```
+
+   Toggle:
+   ```json
+   {"type": 6, "data": {"segments": [{"type": 0, "text": "Toggle header", "enhancer": {}}]}}
+   ```
+
+   Quote:
+   ```json
+   {"type": 12, "data": {"segments": [{"type": 0, "text": "Quoted text", "enhancer": {}}]}}
+   ```
+
+   Divider:
+   ```json
+   {"type": 9, "data": {}}
    ```
 
    Получить block_id нужного блока:
