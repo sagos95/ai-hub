@@ -19,7 +19,8 @@ integrations/time/
     ├── time-extract-token-from-storage.sh  # Извлечение токена из storage-state (Playwright MCP)
     ├── time-save-token-from-clipboard.sh   # Сохранение из clipboard (DevTools MCP)
     ├── time-channels.sh          # Каналы (Layer 2)
-    └── time-messages.sh          # Сообщения (Layer 2)
+    ├── time-messages.sh          # Сообщения (Layer 2)
+    └── time-helpers.sh           # Shared helpers: permalink parsing, batch user resolve
 ```
 
 ## Быстрый старт
@@ -122,8 +123,12 @@ TIME_AS=me ./time-channels.sh my-channels <team_id>
 # Последние сообщения
 ./time-messages.sh posts <channel_id> 0 20
 
-# Тред
+# Тред — принимает raw post_id или permalink URL
 ./time-messages.sh thread <post_id>
+./time-messages.sh thread "https://your-company.time-messenger.ru/<team>/pl/<post_id>"
+
+# Один пост — тоже принимает permalink
+./time-messages.sh get <post_id_or_permalink>
 
 # Поиск
 ./time-messages.sh search <team_id> "ключевое слово"
@@ -136,7 +141,28 @@ TIME_AS=me ./time-channels.sh my-channels <team_id>
 
 # Информация о пользователе
 ./time-messages.sh user <user_id>
+
+# Список или поиск пользователей
+./time-messages.sh users                 # первые 50
+./time-messages.sh users "orlov"          # поиск по term
+./time-messages.sh users "" 0 100         # пагинация без поиска
+
+# Direct messages с пользователем (auto-enriched)
+./time-messages.sh dm @some.user 20
 ```
+
+### Резолв username в выводе
+
+Флаг `--resolve-users` (алиас `--enrich`) дописывает объект `user` рядом с `user_id` в каждом посте. Поддерживается для `posts`, `thread`, `search`, `my-posts`. Action `dm` обогащает автоматически.
+
+```bash
+./time-messages.sh posts <channel_id> --resolve-users | jq '.posts | to_entries[0].value | {message, user: .user.username}'
+./time-messages.sh thread <post_id> --resolve-users
+./time-messages.sh search <team_id> "release" --resolve-users
+./time-messages.sh my-posts <channel_id> --resolve-users
+```
+
+Резолв батчевый — один запрос `POST /api/v4/users/ids` на все уникальные `user_id` в ответе. Результат кэшируется в `integrations/time/.cache/users.json` с TTL 7 суток. Если запрос упал, пост возвращается без `user` (warning в stderr, команда не валится).
 
 ### Через Claude Code
 

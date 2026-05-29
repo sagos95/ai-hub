@@ -14,14 +14,14 @@
 #   update <page_id> <title>               — обновить заголовок страницы
 #   archive <page_id>                      — архивировать страницу (status: -1)
 #   get-blocks <page_id>                   — получить блоки страницы (JSON)
-#   append-blocks <page_id> <json_blocks>  — добавить блоки на страницу (transaction)
-#   append-text <page_id> <text>           — добавить текстовый параграф
-#   delete-block <block_id> <parent_id>    — удалить блок
+#   append-blocks <page_id> <json_blocks>              — добавить блоки на страницу (transaction)
+#   insert-blocks-after <page_id> <after_block_id> <json_blocks>  — вставить блоки после конкретного блока
+#   append-text <page_id> <text>                       — добавить текстовый параграф
+#   delete-block <block_id> <parent_id>                — удалить блок
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
 buildin() {
     "$SCRIPT_DIR/buildin.sh" "$@"
@@ -459,6 +459,79 @@ print(json.dumps(ops))
         transaction "$SPACE_ID" "$OPS"
         ;;
 
+    insert-blocks-after)
+        PAGE_ID=$(parse_id "$1")
+        AFTER_BLOCK_ID=$(parse_id "$2")
+        BLOCKS_JSON="$3"
+        [[ -z "$PAGE_ID" || -z "$AFTER_BLOCK_ID" || -z "$BLOCKS_JSON" ]] && { echo "Usage: insert-blocks-after <page_id|url> <after_block_id> <json_blocks>" >&2; exit 1; }
+
+        SPACE_ID=$(get_space_id "$PAGE_ID")
+        NOW=$(python3 -c "import time; print(int(time.time()*1000))")
+        USER_ID=$(buildin GET "/api/users/me" | python3 -c "import sys,json; print(json.load(sys.stdin).get('data',{}).get('uuid',''))")
+
+        OPS=$(python3 -c "
+import json, sys, uuid
+
+page_id = sys.argv[1]
+after_block_id = sys.argv[2]
+space_id = sys.argv[3]
+now = int(sys.argv[4])
+user_id = sys.argv[5]
+blocks_json = sys.argv[6]
+
+blocks = json.loads(blocks_json)
+ops = []
+prev_id = after_block_id
+
+for block in blocks:
+    block_id = str(uuid.uuid4())
+    block_type = block.get('type', 1)
+    block_data = block.get('data', {})
+
+    ops.append({
+        'id': block_id,
+        'command': 'set',
+        'table': 'block',
+        'path': [],
+        'args': {
+            'uuid': block_id,
+            'spaceId': space_id,
+            'parentId': page_id,
+            'type': block_type,
+            'textColor': '',
+            'backgroundColor': '',
+            'status': 1,
+            'permissions': [],
+            'createdAt': now,
+            'createdBy': user_id,
+            'updatedBy': user_id,
+            'updatedAt': now,
+            'data': {**{'pageFixedWidth': True, 'format': {'commentAlignment': 'top'}}, **block_data}
+        }
+    })
+    ops.append({
+        'id': page_id,
+        'command': 'listAfter',
+        'table': 'block',
+        'path': ['subNodes'],
+        'args': {'uuid': block_id, 'after': prev_id}
+    })
+    prev_id = block_id
+
+ops.append({
+    'id': page_id,
+    'command': 'update',
+    'table': 'block',
+    'path': [],
+    'args': {'updatedBy': user_id, 'updatedAt': now}
+})
+
+print(json.dumps(ops))
+" "$PAGE_ID" "$AFTER_BLOCK_ID" "$SPACE_ID" "$NOW" "$USER_ID" "$BLOCKS_JSON")
+
+        transaction "$SPACE_ID" "$OPS"
+        ;;
+
     append-text)
         PAGE_ID=$(parse_id "$1")
         TEXT="$2"
@@ -517,7 +590,8 @@ print(json.dumps(ops))
         echo "  update <id|url> <title>                  — обновить заголовок"
         echo "  archive <id|url>                         — архивировать (status: -1)"
         echo "  get-blocks <id|url>                      — блоки страницы (JSON)"
-        echo "  append-blocks <id|url> <json_blocks>     — добавить блоки"
+        echo "  append-blocks <id|url> <json_blocks>     — добавить блоки в конец страницы"
+        echo "  insert-blocks-after <id|url> <after_block_id> <json_blocks>  — вставить блоки после конкретного блока"
         echo "  append-text <id|url> <text>              — добавить текстовый параграф"
         echo "  delete-block <block_id> [parent_id]      — удалить блок"
         ;;

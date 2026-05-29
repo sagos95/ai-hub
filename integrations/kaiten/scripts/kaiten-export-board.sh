@@ -11,11 +11,22 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+# Source hub-meta/scripts/load-env.sh from either marketplace layout
+# (<root>/integrations/<plugin>/scripts/) or Claude Code plugin cache
+# (<cache>/<marketplace>/<plugin>/<version>/scripts/, located via CLAUDE_PLUGIN_ROOT).
+_hub_load_env_sh="$SCRIPT_DIR/../../hub-meta/scripts/load-env.sh"
+[[ -f "$_hub_load_env_sh" ]] || _hub_load_env_sh=$(ls "${CLAUDE_PLUGIN_ROOT:-/dev/null}"/../../hub-meta/*/scripts/load-env.sh 2>/dev/null | head -1)
+[[ -f "$_hub_load_env_sh" ]] || { echo "Error: hub-meta/scripts/load-env.sh not found (marketplace and plugin-cache layouts checked)" >&2; exit 1; }
+# shellcheck source=../../hub-meta/scripts/load-env.sh
+source "$_hub_load_env_sh"
+unset _hub_load_env_sh
+hub_load_env "$SCRIPT_DIR" || true
 
-# Auto-read PROPERTY_ID from team-config.json if not set via env
-if [[ -z "${PROPERTY_ID:-}" && -f "$ROOT_DIR/team-config.json" ]]; then
-    PROPERTY_ID=$(jq -r '.kaiten.property_id_affected_services // empty' "$ROOT_DIR/team-config.json" 2>/dev/null || true)
+# Auto-read PROPERTY_ID from team-config.json (lives at the overlay root,
+# next to .env). Falls back silently if no team config is present.
+TEAM_CONFIG="${HUB_OVERLAY_ROOT:-}/team-config.json"
+if [[ -z "${PROPERTY_ID:-}" && -f "$TEAM_CONFIG" ]]; then
+    PROPERTY_ID=$(jq -r '.kaiten.property_id_affected_services // empty' "$TEAM_CONFIG" 2>/dev/null || true)
 fi
 PROPERTY_ID="${PROPERTY_ID:-}"
 
@@ -27,7 +38,13 @@ if [[ -z "$1" ]]; then
 fi
 
 BOARD_ID="$1"
-OUTPUT_FILE="${2:-board_${BOARD_ID}.md}"
+if [[ -n "${2:-}" ]]; then
+    OUTPUT_FILE="$2"
+else
+    TEMP_DIR="${HUB_OVERLAY_ROOT:-.}/Temp"
+    mkdir -p "$TEMP_DIR"
+    OUTPUT_FILE="${TEMP_DIR}/board_${BOARD_ID}.md"
+fi
 
 echo "Fetching board info..." >&2
 

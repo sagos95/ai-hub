@@ -9,7 +9,7 @@
     {
       "name": "spike",
       "description": "Spike research workflow — 3 specialized agents (explorer, researcher, architect) produce a structured report from a Kaiten card",
-      "version": "2.0.0",
+      "version": "2.0.1",
       "author": {
         "name": "AI Hub Contributors"
       },
@@ -31,7 +31,7 @@
     {
       "name": "kaiten",
       "description": "Kaiten board automation tools — cards, columns, properties, comments",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": {
         "name": "AI Hub Contributors"
       },
@@ -42,7 +42,7 @@
     {
       "name": "time",
       "description": "Time (Mattermost) integration — read/write channels, messages, threads with dual auth (bot + personal)",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": {
         "name": "AI Hub Contributors"
       },
@@ -53,7 +53,7 @@
     {
       "name": "buildin",
       "description": "Buildin.ai wiki page management — create and update documentation pages",
-      "version": "2.1.0",
+      "version": "2.1.2",
       "author": {
         "name": "AI Hub Contributors"
       },
@@ -64,7 +64,7 @@
     {
       "name": "holst",
       "description": "Holst.so board data export — frames, stickers, texts via Chrome DevTools",
-      "version": "1.0.0",
+      "version": "2.0.0",
       "author": {
         "name": "AI Hub Contributors"
       },
@@ -108,7 +108,7 @@
     {
       "name": "hub-meta",
       "description": "AI Hub meta-tools — setup wizard, create new commands, run session retrospectives, update subtree from upstream",
-      "version": "1.2.0",
+      "version": "1.2.1",
       "author": {
         "name": "AI Hub Contributors"
       },
@@ -126,6 +126,17 @@
       "source": "./integrations/code-review",
       "category": "development",
       "homepage": "https://github.com/sagos95/ai-hub/tree/main/integrations/code-review"
+    },
+    {
+      "name": "testops",
+      "description": "Allure TestOps integration — test cases, launches, defects, test plans, jobs via REST API",
+      "version": "0.1.0",
+      "author": {
+        "name": "AI Hub Contributors"
+      },
+      "source": "./integrations/testops",
+      "category": "productivity",
+      "homepage": "https://github.com/sagos95/ai-hub/tree/main/integrations/testops"
     }
   ]
 }

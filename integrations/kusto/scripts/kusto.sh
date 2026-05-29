@@ -5,18 +5,23 @@
 # Requirements: Azure CLI (az), curl, python3
 #   az login
 #
-# Configuration via .env.local:
+# Configuration via .env in overlay root:
 #   KUSTO_CLUSTER=https://your-cluster.region.kusto.windows.net
 #   KUSTO_DATABASE=your-database
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-
-if [[ -f "$ROOT_DIR/.env.local" ]]; then
-    set -a; source "$ROOT_DIR/.env.local"; set +a
-fi
+# Source hub-meta/scripts/load-env.sh from either marketplace layout
+# (<root>/integrations/<plugin>/scripts/) or Claude Code plugin cache
+# (<cache>/<marketplace>/<plugin>/<version>/scripts/, located via CLAUDE_PLUGIN_ROOT).
+_hub_load_env_sh="$SCRIPT_DIR/../../hub-meta/scripts/load-env.sh"
+[[ -f "$_hub_load_env_sh" ]] || _hub_load_env_sh=$(ls "${CLAUDE_PLUGIN_ROOT:-/dev/null}"/../../hub-meta/*/scripts/load-env.sh 2>/dev/null | head -1)
+[[ -f "$_hub_load_env_sh" ]] || { echo "Error: hub-meta/scripts/load-env.sh not found (marketplace and plugin-cache layouts checked)" >&2; exit 1; }
+# shellcheck source=../../hub-meta/scripts/load-env.sh
+source "$_hub_load_env_sh"
+unset _hub_load_env_sh
+hub_load_env "$SCRIPT_DIR"
 
 for cmd in az curl python3; do
     if ! command -v "$cmd" &>/dev/null; then
@@ -26,13 +31,13 @@ for cmd in az curl python3; do
 done
 
 if [[ -z "$KUSTO_CLUSTER" ]]; then
-    echo "Error: KUSTO_CLUSTER must be set in .env.local" >&2
+    echo "Error: KUSTO_CLUSTER must be set in .env" >&2
     echo "Example: KUSTO_CLUSTER=https://mycluster.westeurope.kusto.windows.net" >&2
     exit 1
 fi
 
 if [[ -z "$KUSTO_DATABASE" ]]; then
-    echo "Error: KUSTO_DATABASE must be set in .env.local" >&2
+    echo "Error: KUSTO_DATABASE must be set in .env" >&2
     exit 1
 fi
 

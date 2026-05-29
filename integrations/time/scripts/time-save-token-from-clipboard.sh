@@ -6,17 +6,20 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-ENV_FILE="$ROOT_DIR/.env"
-TIME_BASE_URL="${TIME_BASE_URL:-https://your-company.time-messenger.ru}"
+SUBTREE_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+# Source hub-meta/scripts/load-env.sh from either marketplace layout
+# (<root>/integrations/<plugin>/scripts/) or Claude Code plugin cache
+# (<cache>/<marketplace>/<plugin>/<version>/scripts/, located via CLAUDE_PLUGIN_ROOT).
+_hub_load_env_sh="$SCRIPT_DIR/../../hub-meta/scripts/load-env.sh"
+[[ -f "$_hub_load_env_sh" ]] || _hub_load_env_sh=$(ls "${CLAUDE_PLUGIN_ROOT:-/dev/null}"/../../hub-meta/*/scripts/load-env.sh 2>/dev/null | head -1)
+[[ -f "$_hub_load_env_sh" ]] || { echo "Error: hub-meta/scripts/load-env.sh not found (marketplace and plugin-cache layouts checked)" >&2; exit 1; }
+# shellcheck source=../../hub-meta/scripts/load-env.sh
+source "$_hub_load_env_sh"
+unset _hub_load_env_sh
+hub_load_env "$SCRIPT_DIR" || true
 
-# Load existing env (for TIME_BASE_URL override)
-if [[ -f "$ENV_FILE" ]]; then
-    set -a
-    source "$ENV_FILE"
-    set +a
-    TIME_BASE_URL="${TIME_BASE_URL:-https://your-company.time-messenger.ru}"
-fi
+ENV_FILE="${HUB_ENV_FILE:-$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null || echo "$SUBTREE_ROOT")/.env}"
+TIME_BASE_URL="${TIME_BASE_URL:-https://your-company.time-messenger.ru}"
 
 # Read token from clipboard
 TOKEN=$(pbpaste 2>/dev/null | tr -d '[:space:]')

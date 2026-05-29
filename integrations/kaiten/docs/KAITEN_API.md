@@ -202,6 +202,13 @@ POST /cards/{card_id}/comments
 | GET | `/cards/{card_id}/tags` | Получить теги |
 | DELETE | `/cards/{card_id}/tags/{tag_id}` | Удалить тег |
 
+> **⚠️ Gotcha:** Тег добавляется **по имени**, не по id. Передавайте `{"name": "AI"}`, а не `{"tag_id": 123}` — иначе получите 400.
+
+```json
+POST /cards/{card_id}/tags
+{"name": "Имя тега"}
+```
+
 ---
 
 ## Card Checklists (Чек-листы)
@@ -253,11 +260,14 @@ POST /cards/{card_id}/checklists/{checklist_id}/items
 ```json
 POST /cards/{card_id}/blockers
 {
-  "reason": "Причина блокировки"
+  "reason": "Причина блокировки",
+  "blocker_card_id": 123
 }
 ```
 
-**Примечание:** Блокер устанавливает статус карточки как "заблокированная" и добавляет причину блокировки.
+> **Два вида блокеров:**
+> - С `blocker_card_id` — связывает две карточки: текущая заблокирована другой (зависимость)
+> - Только с `reason` — текстовый блокер без привязки к карточке
 
 ---
 
@@ -316,11 +326,21 @@ POST /cards/{card_id}/blockers
 
 | Метод | Endpoint | Описание |
 |-------|----------|----------|
+| GET | `/company/custom-properties` | Список всех свойств компании |
+| GET | `/company/custom-properties/{id}/select-values` | Значения select-свойства |
 | POST | `/properties` | Создать свойство |
-| GET | `/properties` | Получить список свойств |
 | GET | `/properties/{id}` | Получить свойство |
 | PATCH | `/properties/{id}` | Обновить свойство |
 | DELETE | `/properties/{id}` | Удалить свойство |
+
+> **Формат значений свойств:** `"id_{property_id}": [{select_value_id}]` для select-свойств. Для получения ID свойств: `GET /company/custom-properties`, для значений select: `GET /company/custom-properties/{id}/select-values`.
+
+> **⚠️ Gotcha:** Нативного API для "related cards" (связанные карточки) не существует. Для связывания карточек используйте `external-links` с URL на карточку:
+>
+> ```json
+> POST /cards/{id}/external-links
+> {"url": "https://domain.kaiten.ru/space/{space}/boards/card/{card_id}", "description": "Связанная задача"}
+> ```
 
 ---
 

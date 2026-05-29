@@ -19,11 +19,20 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+SUBTREE_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+
+# Load env first so HUB_OVERLAY_ROOT is known. ROOT_DIR is the directory
+# whose .env should drive the setup (overlay root in team installs,
+# subtree root in standalone ai-hub clones). State file always lives in
+# the subtree, since the state schema ships with the subtree code.
+# shellcheck source=load-env.sh
+source "$SCRIPT_DIR/load-env.sh"
+hub_load_env "$SCRIPT_DIR" || true
+ROOT_DIR="${HUB_OVERLAY_ROOT:-$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null || echo "$SUBTREE_ROOT")}"
 cd "$ROOT_DIR"
 
 ENV_MGR="bash $SCRIPT_DIR/env-manager.sh"
-STATE_FILE="$ROOT_DIR/integrations/hub-meta/.setup-state"
+STATE_FILE="$SUBTREE_ROOT/integrations/hub-meta/.setup-state"
 CONFIG_PAGE_URL="https://buildin.ai/c7ec2023-9025-4c09-be09-e6f54cb07f7e"
 CONFIG_PAGE_ID="c7ec2023-9025-4c09-be09-e6f54cb07f7e"
 
@@ -183,7 +192,7 @@ EOF
 
 # Step 2 — логин в Buildin
 check_2() {
-    bash "$ROOT_DIR/integrations/buildin/scripts/buildin-login.sh" check 2>&1 | grep -q '^ok '
+    bash "$SUBTREE_ROOT/integrations/buildin/scripts/buildin-login.sh" check 2>&1 | grep -q '^ok '
 }
 say_2() {
     cat <<EOF
@@ -248,7 +257,7 @@ EOF
 
 # Step 4 — логин в Time
 check_4() {
-    bash "$ROOT_DIR/integrations/time/scripts/time-login.sh" check 2>&1 | grep -q '^ok '
+    bash "$SUBTREE_ROOT/integrations/time/scripts/time-login.sh" check 2>&1 | grep -q '^ok '
 }
 say_4() {
     local time_url
@@ -319,9 +328,7 @@ check_6() {
     is_skipped kaiten_token || is_marked kaiten_token
 }
 load_env_locally() {
-    if [[ -f "$ROOT_DIR/.env" ]]; then
-        set -a; source "$ROOT_DIR/.env"; set +a
-    fi
+    hub_load_env "$SCRIPT_DIR" || true
 }
 say_6() {
     local kaiten_domain
