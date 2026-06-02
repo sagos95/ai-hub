@@ -51,13 +51,15 @@ hub_load_env() {
         unset "$_k"
     done
 
-    # Walk up collecting all .env files. Source them outermost-LAST so the
-    # outer .env (overlay root) wins over any inner .env (e.g. one shipped
-    # inside a vendored subtree). This gives team-overlay installs the
-    # expected behavior — team .env at the repo root overrides any leftover
-    # values inside integrations/sagos95-ai-hub/.env, while still picking
-    # up subtree-only keys (e.g. KUSTO_CLUSTER, TIME_BASE_URL) when the
-    # overlay doesn't redefine them.
+    # Walk up collecting all .env files innermost-FIRST via append. The
+    # resulting array is ordered innermost→outermost (found[0] = nearest .env,
+    # found[last] = overlay root). Sourcing in that order makes the outer .env
+    # (overlay root) win on conflicting keys, while inner-only keys (e.g. one
+    # shipped inside a vendored subtree) are still picked up. This gives
+    # team-overlay installs the expected behavior — team .env at the repo root
+    # overrides any leftover values inside integrations/sagos95-ai-hub/.env,
+    # while still picking up subtree-only keys (e.g. KUSTO_CLUSTER,
+    # TIME_BASE_URL) when the overlay doesn't redefine them.
     local found=()
     local dir="$start"
     # The "." guard is a safety net in case start was not normalized to an
@@ -65,7 +67,7 @@ hub_load_env() {
     # dirname maps back to "." forever).
     while [[ "$dir" != "/" && "$dir" != "." && -n "$dir" ]]; do
         if [[ -f "$dir/.env" ]]; then
-            found=("$dir/.env" "${found[@]}")
+            found=("${found[@]}" "$dir/.env")
         fi
         dir="$(dirname "$dir")"
     done
@@ -74,7 +76,7 @@ hub_load_env() {
         return 1
     fi
 
-    # Source innermost first, outermost last → outermost wins.
+    # Source innermost first, outermost last → outermost (overlay root) wins.
     local _f
     for _f in "${found[@]}"; do
         set -a
