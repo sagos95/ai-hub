@@ -40,6 +40,12 @@ HUB_KNOWN_SECRETS=(
 hub_load_env() {
     local start="${1:-$PWD}"
 
+    # Relative paths collapse to "." under dirname and the walk below would
+    # loop forever (dirname . == .). Normalize to an absolute path first.
+    if [[ "$start" != /* ]]; then
+        start="$(cd "$start" 2>/dev/null && pwd)" || start="$PWD"
+    fi
+
     local _k
     for _k in "${HUB_KNOWN_SECRETS[@]}"; do
         unset "$_k"
@@ -54,7 +60,10 @@ hub_load_env() {
     # overlay doesn't redefine them.
     local found=()
     local dir="$start"
-    while [[ "$dir" != "/" && -n "$dir" ]]; do
+    # The "." guard is a safety net in case start was not normalized to an
+    # absolute path (dirname of a relative path eventually yields ".", which
+    # dirname maps back to "." forever).
+    while [[ "$dir" != "/" && "$dir" != "." && -n "$dir" ]]; do
         if [[ -f "$dir/.env" ]]; then
             found=("$dir/.env" "${found[@]}")
         fi
