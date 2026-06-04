@@ -306,7 +306,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const name = request.params.name;
   const args = request.params.arguments || {};
+  return await executeTool(name, args);
+});
 
+async function executeTool(name: string, args: any) {
   try {
     if (name === "buildin_get_page_json") {
       const pageId = parseId(args.page_id as string);
@@ -636,7 +639,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       ],
     };
   }
-});
+}
 
 async function run() {
   const transport = new StdioServerTransport();
@@ -644,7 +647,18 @@ async function run() {
   console.error("Buildin MCP server running on stdio");
 }
 
-run().catch((error) => {
-  console.error("Fatal error:", error);
-  process.exit(1);
-});
+if (process.argv[2] === 'cli') {
+  const toolName = process.argv[3];
+  const toolArgs = JSON.parse(process.argv[4] || '{}');
+  executeTool(toolName, toolArgs).then(result => {
+    console.log(JSON.stringify(result, null, 2));
+  }).catch(error => {
+    console.error("Fatal error:", error);
+    process.exit(1);
+  });
+} else {
+  run().catch((error) => {
+    console.error("Fatal error:", error);
+    process.exit(1);
+  });
+}
