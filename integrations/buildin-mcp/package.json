@@ -4,7 +4,8 @@
   "description": "MCP server for Buildin integration",
   "main": "build/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node18 --outfile=build/index.js --format=cjs",
+    "build:types": "tsc --noEmit",
     "watch": "tsc --watch",
     "start": "node build/index.js"
   },
@@ -14,6 +15,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
+    "esbuild": "^0.28.0",
     "typescript": "^5.0.0"
   }
 }
