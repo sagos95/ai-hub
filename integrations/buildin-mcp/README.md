@@ -17,14 +17,6 @@ MCP (Model Context Protocol) сервер для работы с [Buildin.ai](ht
 
 ## Установка
 
-### Зависимости
-
-```bash
-cd integrations/buildin-mcp
-npm install
-npm run build
-```
-
 ### Токен
 
 Нужен `BUILDIN_UI_TOKEN` — JWT-токен из Google SSO. Получить через `/ai-hub:buildin-login`, затем сохранить:
@@ -35,13 +27,11 @@ bash integrations/hub-meta/scripts/env-manager.sh set BUILDIN_UI_TOKEN <token>
 
 Опционально: `BUILDIN_SPACE_ID` — ID пространства для поиска по умолчанию.
 
-### Claude Code
+### Claude Code (через плагин — автоматически)
 
-```bash
-claude mcp add buildin-mcp -- node "$(pwd)/integrations/buildin-mcp/build/index.js"
-```
+Плагин содержит `.mcp.json`, поэтому MCP-сервер стартует **автоматически** при включении плагина. Ручная настройка не нужна.
 
-Удалить: `claude mcp remove buildin-mcp`
+Если плагин уже запущен, перезагрузите: `/reload-plugins`.
 
 ### Copilot (автоматически)
 
@@ -55,6 +45,16 @@ node integrations/buildin-mcp/build/index.js cli buildin_read_page '{"query":"<u
 node integrations/buildin-mcp/build/index.js cli buildin_search_pages '{"query":"текст","space_id":"<uuid>"}'
 ```
 
+## Сборка (для разработчиков)
+
+`build/index.js` закоммичен в репозиторий — пересобирать не нужно. При изменении `src/`:
+
+```bash
+cd integrations/buildin-mcp
+npm install
+npm run build
+```
+
 ## Структура
 
 ```
@@ -62,7 +62,9 @@ integrations/buildin-mcp/
 ├── src/
 │   ├── index.ts      # MCP-сервер (8 инструментов + CLI-режим)
 │   └── shadow.ts     # Кеш страниц для поиска (shadow index)
-├── build/            # Скомпилированный JS (в .gitignore, собирать локально)
+├── build/
+│   └── index.js      # Скомпилированный бандл (esbuild, self-contained, в git)
+├── .mcp.json         # Plugin MCP конфиг — автостарт при включении плагина
 ├── package.json
 └── tsconfig.json
 ```
