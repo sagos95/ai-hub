@@ -308,6 +308,18 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           },
           required: ["page_id", "blocks_json"],
         },
+      },
+      {
+        name: "buildin_delete_block",
+        description: "Delete (archive) a block from a Buildin page",
+        inputSchema: {
+          type: "object",
+          properties: {
+            block_id: { type: "string", description: "UUID or URL of the block to delete" },
+            parent_id: { type: "string", description: "Optional: UUID of the parent block. If not provided, will be auto-detected." }
+          },
+          required: ["block_id"],
+        },
       }
     ],
   };
@@ -634,6 +646,47 @@ async function executeTool(name: string, args: any) {
 
       return {
         content: [{ type: "text", text: `Successfully appended ${blocks.length} blocks to page ${pageId}` }],
+      };
+    }
+
+    if (name === "buildin_delete_block") {
+      let blockId = parseId(args.block_id as string);
+      let parentId = args.parent_id ? parseId(args.parent_id as string) : null;
+
+      // Auto-detect parent if not provided
+      if (!parentId) {
+        const blockData = await buildinFetch("GET", `/api/blocks/${blockId}`);
+        parentId = blockData?.data?.parentId || null;
+        if (!parentId) {
+          throw new Error(`Cannot determine parent ID for block ${blockId}. Provide parent_id explicitly.`);
+        }
+      }
+
+      const spaceId = await getSpaceId(blockId);
+      const userId = await getUserId();
+      const now = Date.now();
+
+      const ops = [
+        {
+          id: blockId,
+          command: 'update',
+          table: 'block',
+          path: [],
+          args: { status: -1, updatedBy: userId, updatedAt: now }
+        },
+        {
+          id: parentId,
+          command: 'listRemove',
+          table: 'block',
+          path: ['subNodes'],
+          args: { uuid: blockId }
+        }
+      ];
+
+      await buildinTransaction(spaceId, ops);
+
+      return {
+        content: [{ type: "text", text: `Successfully deleted block ${blockId}` }],
       };
     }
 
