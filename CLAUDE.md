@@ -29,6 +29,7 @@ bash integrations/hub-meta/scripts/setup.sh next
 ├── integrations/
 │   ├── kaiten/                   # Kaiten API клиент              → README.md
 │   ├── buildin/                  # Buildin wiki клиент (UI API)   → README.md
+│   ├── buildin-mcp/              # Buildin MCP-сервер (8 инструментов) → README.md
 │   ├── buildin-bot-api/          # Buildin wiki клиент (Bot API)  → README.md
 │   ├── time/                     # Time (Mattermost) клиент       → README.md
 │   ├── genie/                    # Databricks Genie (аналитика)   → README.md
@@ -87,10 +88,16 @@ Claude Code CLI ищет slash-команды в `.claude/commands/`. Коман
 | **Kaiten** — таск-трекер (аналог Jira/Linear) | скрипты `integrations/kaiten/scripts/` | скрипты `integrations/kaiten/` | Карточки, комментарии, чек-листы, перемещение по колонкам, работа с досками |
 | **Time** — мессенджер (аналог Slack), на базе Mattermost | `/ai-hub:time-chat` | `/ai-hub:time-chat` | Чтение тредов/каналов для контекста, отправка статусов и вопросов |
 | **Buildin (UI API)** — база знаний (аналог Notion) | `/ai-hub:buildin-read` или скрипты `integrations/buildin/scripts/buildin-pages.sh read <url\|id>` | `/ai-hub:buildin-publish` | Чтение документации, публикация результатов. JWT-токен из Google SSO, видит все страницы пользователя. Логин: `/ai-hub:buildin-login` |
+| **Buildin (MCP)** — база знаний через MCP-протокол | встроенные тулы `buildin_read_page`, `buildin_get_title`, `buildin_search_pages` | тулы `buildin_create_page`, `buildin_update_page`, `buildin_append_blocks`, `buildin_delete_block` | MCP-сервер для Claude Code и Copilot. Использует тот же `BUILDIN_UI_TOKEN`. Настройка: `claude mcp add buildin-mcp -- node "$(pwd)/integrations/buildin-mcp/build/index.js"` |
 | **Buildin (Bot API)** — база знаний (Official API) | `/ai-hub:buildin-bot-read` или скрипты `integrations/buildin-bot-api/scripts/buildin-bot-pages.sh read <url\|id>` | скрипты `integrations/buildin-bot-api/scripts/buildin-bot-pages.sh create\|update` | Чтение/запись через бот-токен. Видит только расшаренные боту страницы. Notion-подобный REST API |
 | **Holst** — графические доски (аналог Miro) | `/ai-hub:holst-export` | — | Экспорт данных с визуальных досок (фреймы, стикеры, тексты) |
 
-**Выбор Buildin-интеграции:** если `BUILDIN_UI_TOKEN` есть в `.env` — используй **UI API** (видит все страницы). Если нет — используй **Bot API** (`BUILDIN_BOT_TOKEN`). Не пытайся логиниться через `/ai-hub:buildin-login` автоматически — он требует участия пользователя.
+**Выбор Buildin-интеграции:** 
+- **MCP** (`buildin-mcp`) — предпочтительный вариант для Claude Code и Copilot: нативные тулы, не требует bash. Токен: `BUILDIN_UI_TOKEN`.
+- **UI API** (`buildin/`) — bash-скрипты, если MCP не настроен. Тот же токен.
+- **Bot API** (`buildin-bot-api/`) — если нет `BUILDIN_UI_TOKEN`, есть только `BUILDIN_BOT_TOKEN`. Видит только расшаренные боту страницы.
+
+Не пытайся логиниться через `/ai-hub:buildin-login` автоматически — он требует участия пользователя.
 
 ## Team Config
 
