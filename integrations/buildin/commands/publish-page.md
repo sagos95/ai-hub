@@ -61,16 +61,26 @@ bash integrations/buildin/scripts/buildin-pages.sh create "<parent_page_id>" "<t
 1. Преобразуй markdown/текст в блоки Buildin UI API:
 
    Block types (числовые):
-   - `5` — paragraph (текст с segments)
-   - `6` — heading (level: 1/2/3)
+   - `1` — paragraph (обычный текст; не todo/не checkbox)
+   - `3` — todo list item (используй только когда нужен checkbox)
    - `4` — bulleted list item
-   - `25` — code block
+   - `5` — numbered list item
+   - `6` — toggle/collapsible
+   - `7` — heading (level: 1/2/3)
+   - `9` — divider
+   - `12` — quote/blockquote
    - `13` — callout
-   - `26` — divider
+   - `23` — equation (LaTeX)
+   - `25` — code block
 
    Segment format:
    ```json
    {"type": 0, "text": "Hello", "enhancer": {"bold": true}}
+   ```
+
+   Inline code segment:
+   ```json
+   {"type": 0, "text": "BasisName", "enhancer": {"code": true}}
    ```
 
    Link segment (type 3):
@@ -79,18 +89,46 @@ bash integrations/buildin/scripts/buildin-pages.sh create "<parent_page_id>" "<t
    ```
 
 2. Отправляй блоки батчами:
+
+   **В конец страницы:**
    ```bash
    bash integrations/buildin/scripts/buildin-pages.sh append-blocks "<page_id>" '<json_array>'
    ```
 
+   **После конкретного блока** (нужен `block_id` существующего блока — получи через `get-blocks`):
+   ```bash
+   bash integrations/buildin/scripts/buildin-pages.sh insert-blocks-after "<page_id>" "<after_block_id>" '<json_array>'
+   ```
+
    Каждый элемент массива:
    ```json
-   {"type": 5, "data": {"segments": [{"type": 0, "text": "Hello", "enhancer": {}}]}}
+   {"type": 1, "data": {"segments": [{"type": 0, "text": "Hello", "enhancer": {}}]}}
    ```
 
    Heading:
    ```json
-   {"type": 6, "data": {"level": 2, "segments": [{"type": 0, "text": "Title", "enhancer": {}}]}}
+   {"type": 7, "data": {"level": 2, "segments": [{"type": 0, "text": "Title", "enhancer": {}}]}}
+   ```
+
+   Toggle:
+   ```json
+   {"type": 6, "data": {"segments": [{"type": 0, "text": "Toggle header", "enhancer": {}}]}}
+   ```
+
+   Quote:
+   ```json
+   {"type": 12, "data": {"segments": [{"type": 0, "text": "Quoted text", "enhancer": {}}]}}
+   ```
+
+   Divider:
+   ```json
+   {"type": 9, "data": {}}
+   ```
+
+   Получить block_id нужного блока:
+   ```bash
+   bash integrations/buildin/scripts/buildin-pages.sh get-blocks "<page_id>" > /tmp/blocks.json
+   # затем в Python: json.load(open('/tmp/blocks.json')) — поле "uuid" каждого блока
    ```
 
 ### Фаза 5: Результат
