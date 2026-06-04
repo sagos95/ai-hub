@@ -11,8 +11,8 @@ const homeDir = os.homedir();
 const pluginsEnvPath = path.join(homeDir, '.copilot/installed-plugins/.env');
 const repoEnvPath = path.join(path.resolve('.'), '.env');
 
-dotenv.config({ path: repoEnvPath });
-dotenv.config({ path: pluginsEnvPath });
+dotenv.config({ path: repoEnvPath, quiet: true });
+dotenv.config({ path: pluginsEnvPath, quiet: true });
 
 const BUILDIN_UI_TOKEN = process.env.BUILDIN_UI_TOKEN;
 const BUILDIN_BASE_URL = "https://buildin.ai";

@@ -4,7 +4,7 @@ import { fileURLToPath } from "url";
 import { dirname, resolve } from "path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const repoRoot = resolve(__dirname, "../..");
+const repoRoot = resolve(__dirname, "../../..");
 const mcpBuildPath = resolve(repoRoot, "integrations/buildin-mcp/build/index.js");
 
 async function callMcpTool(toolName, toolArgs) {
@@ -63,7 +63,7 @@ const session = await joinSession({
       },
       skipPermission: false,
       handler: async (args) => {
-        const result = await callMcpTool("buildin_read_page", args);
+        const result = await callMcpTool("buildin_read_page", { query: args.page_id });
         return result.content?.[0]?.text || JSON.stringify(result);
       },
     },
@@ -156,6 +156,29 @@ const session = await joinSession({
       skipPermission: false,
       handler: async (args) => {
         const result = await callMcpTool("buildin_append_blocks", args);
+        return result.content?.[0]?.text || JSON.stringify(result);
+      },
+    },
+    {
+      name: "buildin_delete_block",
+      description: "Delete (archive) a block from a Buildin page.",
+      parameters: {
+        type: "object",
+        properties: {
+          block_id: {
+            type: "string",
+            description: "UUID or URL of the block to delete",
+          },
+          parent_id: {
+            type: "string",
+            description: "UUID or URL of the parent page/block. Auto-detected if omitted.",
+          },
+        },
+        required: ["block_id"],
+      },
+      skipPermission: false,
+      handler: async (args) => {
+        const result = await callMcpTool("buildin_delete_block", args);
         return result.content?.[0]?.text || JSON.stringify(result);
       },
     },
