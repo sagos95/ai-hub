@@ -1,6 +1,7 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import { searchShadowIndex, updateShadowIndex } from "./shadow.js";
 
 const BUILDIN_UI_TOKEN = process.env.BUILDIN_UI_TOKEN;
 const BUILDIN_BASE_URL = "https://buildin.ai";
@@ -211,18 +212,18 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
-        name: "read_page",
-        description: "Read a Buildin page and render its contents as Markdown",
+        name: "buildin_read_page",
+        description: "Read a Buildin page and render its contents as Markdown. Accepts URL, UUID, or search query.",
         inputSchema: {
           type: "object",
           properties: {
-            page_id: { type: "string", description: "UUID or URL of the page" }
+            query: { type: "string", description: "UUID, URL, or search query text" }
           },
-          required: ["page_id"],
+          required: ["query"],
         },
       },
       {
-        name: "search_pages",
+        name: "buildin_search_pages",
         description: "Search Buildin pages by name",
         inputSchema: {
           type: "object",
@@ -261,8 +262,44 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       };
     }
 
-    if (name === "read_page") {
-      const pageId = parseId(args.page_id as string);
+    if (name === "buildin_read_page") {
+      let query = args.query as string;
+      let pageId = parseId(query);
+
+      // If it doesn't look like a UUID, treat it as a search query
+      if (pageId === query && !query.includes('-')) {
+        const spaceId = DEFAULT_SPACE_ID;
+        if (!spaceId) {
+          throw new Error("space_id is required for search fallback. Provide BUILDIN_SPACE_ID env var.");
+        }
+        
+        // 1. Check shadow index first
+        const shadowMatchId = searchShadowIndex(query);
+        if (shadowMatchId) {
+          pageId = shadowMatchId;
+        } else {
+          // 2. Fallback to UI search API
+          const body = {
+            page: 1,
+            perPage: 5,
+            query: query,
+            source: 'quickFind',
+            sort: 'relevance',
+            filters: { createdBy: [], ancestors: [] }
+          };
+
+          const searchData = await buildinFetch("POST", `/api/search/${spaceId}/docs`, body);
+          const results = searchData?.data?.results || [];
+          if (results.length === 0) {
+            return {
+              content: [{ type: "text", text: `No pages found matching query: "${query}"` }]
+            };
+          }
+          // Take the best match
+          pageId = results[0].pageId || results[0].uuid;
+        }
+      }
+
       const data = await buildinFetch("GET", `/api/docs/${pageId}`);
       
       const payload = data?.data || {};
@@ -273,13 +310,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const lines = [`# ${title}\n`];
       const subNodes = page.subNodes || [];
       const markdownLines = renderBlocksToMarkdown(subNodes, blocks, 0);
+      const fullMarkdown = lines.concat(markdownLines).join('\n');
       
+      // Update shadow index
+      updateShadowIndex(pageId, title, fullMarkdown, page.parentId);
+
       return {
-        content: [{ type: "text", text: lines.concat(markdownLines).join('\n') }],
+        content: [{ type: "text", text: fullMarkdown }],
       };
     }
 
-    if (name === "search_pages") {
+    if (name === "buildin_search_pages") {
       const query = args.query as string;
       const spaceId = (args.space_id as string) || DEFAULT_SPACE_ID;
       
