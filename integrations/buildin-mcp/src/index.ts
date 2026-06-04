@@ -1,9 +1,177 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
+import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+
+const BUILDIN_UI_TOKEN = process.env.BUILDIN_UI_TOKEN;
+const BUILDIN_BASE_URL = "https://buildin.ai";
+const DEFAULT_SPACE_ID = process.env.BUILDIN_SPACE_ID;
+
+if (!BUILDIN_UI_TOKEN) {
+  console.error("Error: BUILDIN_UI_TOKEN environment variable not set. Please authenticate first.");
+  process.exit(1);
+}
+
+/**
+ * Base fetch function mirroring the curl logic from bash scripts
+ */
+async function buildinFetch(method: string, endpoint: string, body: any = null): Promise<any> {
+  const headers: Record<string, string> = {
+    "Authorization": `Bearer ${BUILDIN_UI_TOKEN}`,
+    "Content-Type": "application/json",
+    "x-platform": "web-cookie",
+    "x-app-origin": "web",
+    "x-product": "buildin",
+    "app_version_name": "1.146.0" // Mirroring exact headers from buildin.sh
+  };
+
+  const options: RequestInit = { method, headers };
+  if (body) {
+    options.body = JSON.stringify(body);
+  }
+
+  const res = await fetch(`${BUILDIN_BASE_URL}${endpoint}`, options);
+  
+  if (res.status === 401) {
+    throw new Error("Buildin API Error: Token expired or invalid. Please re-authenticate.");
+  }
+  
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`Buildin API Error: ${res.status} ${res.statusText} - ${errorText}`);
+  }
+  
+  return res.json();
+}
+
+/**
+ * Extract UUID from string or URL
+ */
+function parseId(input: string): string {
+  const uuidRe = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+  const match = input.match(uuidRe);
+  return match ? match[0] : input;
+}
+
+// Markdown rendering logic ported from buildin-pages.sh
+function renderSegments(segments: any[] | undefined): string {
+  if (!segments) return '';
+  const parts: string[] = [];
+  for (const s of segments) {
+    let text = s.text || '';
+    const enh = s.enhancer || {};
+    const url = s.url || '';
+    
+    if (enh.code) text = `\`${text}\``;
+    else if (enh.bold) text = `**${text}**`;
+    else if (enh.italic) text = `*${text}*`;
+    
+    if (url) text = `[${text}](${url})`;
+    
+    parts.push(text);
+  }
+  return parts.join('');
+}
+
+function renderBlocksToMarkdown(nodeIds: string[], blocks: Record<string, any>, indent: number = 0): string[] {
+  const pfx = '  '.repeat(indent);
+  const lines: string[] = [];
+
+  for (const nid of nodeIds) {
+    const b = blocks[nid];
+    if (!b) continue;
+    
+    const t = b.type ?? 1;
+    const d = b.data || {};
+    const segs = d.segments || [];
+    const text = renderSegments(segs);
+    const sub = b.subNodes || [];
+    const level = d.level ?? 1;
+
+    switch (t) {
+      case 0: { // Sub-page
+        const title = b.title || text;
+        const spaceId = b.spaceId || '';
+        lines.push(`${pfx}> [${title}](https://buildin.ai/${spaceId}/${nid})\n`);
+        break;
+      }
+      case 1: { // Paragraph
+        if (text) lines.push(`${pfx}${text}\n`);
+        else lines.push('');
+        break;
+      }
+      case 3: { // Todo
+        const checked = d.checked ? '☑' : '☐';
+        lines.push(`${pfx}${checked} ${text}`);
+        break;
+      }
+      case 4: { // Bulleted
+        lines.push(`${pfx}- ${text}`);
+        break;
+      }
+      case 5: { // Numbered
+        lines.push(`${pfx}1. ${text}`);
+        break;
+      }
+      case 6: { // Toggle
+        lines.push(`${pfx}▶ ${text}\n`);
+        break;
+      }
+      case 7: { // Heading
+        const h = '#'.repeat(Math.min(level + 1, 4));
+        lines.push(`${pfx}${h} ${text}\n`);
+        break;
+      }
+      case 9: { // Divider
+        lines.push(`${pfx}---\n`);
+        break;
+      }
+      case 12: { // Quote
+        lines.push(`${pfx}> ${text}\n`);
+        break;
+      }
+      case 13: { // Callout
+        const icon = (d.icon && d.icon.value) ? d.icon.value : '';
+        lines.push(`${pfx}> ${icon} ${text}\n`);
+        break;
+      }
+      case 14: { // Image
+        const oss = d.ossName || '';
+        lines.push(`${pfx}![${text}](${oss})\n`);
+        break;
+      }
+      case 21: { // Bookmark
+        const link = d.link || '';
+        lines.push(`${pfx}[${text || link}](${link})\n`);
+        break;
+      }
+      case 23: { // Equation
+        lines.push(`${pfx}$$ ${text} $$\n`);
+        break;
+      }
+      case 25: { // Code
+        const lang = d.language || '';
+        lines.push(`${pfx}\`\`\`${lang}`);
+        lines.push(`${pfx}${text}`);
+        lines.push(`${pfx}\`\`\`\n`);
+        break;
+      }
+      default: {
+        if (text) lines.push(`${pfx}${text}\n`);
+        break;
+      }
+    }
+
+    if (sub.length > 0 && t !== 0) {
+      lines.push(...renderBlocksToMarkdown(sub, blocks, indent + 1));
+    }
+  }
+
+  return lines;
+}
+
+// ==========================================
+// MCP Server Setup
+// ==========================================
 
 const server = new Server(
   {
@@ -21,31 +189,160 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [
       {
-        name: "ping",
-        description: "A simple ping tool to verify MCP is running",
+        name: "buildin_get_page_json",
+        description: "Get full JSON representation of a Buildin page or block by ID or URL",
         inputSchema: {
           type: "object",
-          properties: {},
-          required: [],
+          properties: {
+            page_id: { type: "string", description: "UUID or URL of the page" }
+          },
+          required: ["page_id"],
         },
       },
+      {
+        name: "buildin_get_title",
+        description: "Get the title of a Buildin page by ID or URL",
+        inputSchema: {
+          type: "object",
+          properties: {
+            page_id: { type: "string", description: "UUID or URL of the page" }
+          },
+          required: ["page_id"],
+        },
+      },
+      {
+        name: "read_page",
+        description: "Read a Buildin page and render its contents as Markdown",
+        inputSchema: {
+          type: "object",
+          properties: {
+            page_id: { type: "string", description: "UUID or URL of the page" }
+          },
+          required: ["page_id"],
+        },
+      },
+      {
+        name: "search_pages",
+        description: "Search Buildin pages by name",
+        inputSchema: {
+          type: "object",
+          properties: {
+            query: { type: "string", description: "Search query" },
+            space_id: { type: "string", description: "Optional space ID. Uses process.env.BUILDIN_SPACE_ID by default." }
+          },
+          required: ["query"],
+        },
+      }
     ],
   };
 });
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  if (request.params.name === "ping") {
+  const name = request.params.name;
+  const args = request.params.arguments || {};
+
+  try {
+    if (name === "buildin_get_page_json") {
+      const pageId = parseId(args.page_id as string);
+      const data = await buildinFetch("GET", `/api/docs/${pageId}`);
+      
+      return {
+        content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+      };
+    }
+
+    if (name === "buildin_get_title") {
+      const pageId = parseId(args.page_id as string);
+      const data = await buildinFetch("GET", `/api/blocks/${pageId}`);
+      const title = data?.data?.title || "(untitled)";
+      
+      return {
+        content: [{ type: "text", text: title }],
+      };
+    }
+
+    if (name === "read_page") {
+      const pageId = parseId(args.page_id as string);
+      const data = await buildinFetch("GET", `/api/docs/${pageId}`);
+      
+      const payload = data?.data || {};
+      const blocks = payload.blocks || {};
+      const page = blocks[pageId] || {};
+      const title = page.title || "(untitled)";
+      
+      const lines = [`# ${title}\n`];
+      const subNodes = page.subNodes || [];
+      const markdownLines = renderBlocksToMarkdown(subNodes, blocks, 0);
+      
+      return {
+        content: [{ type: "text", text: lines.concat(markdownLines).join('\n') }],
+      };
+    }
+
+    if (name === "search_pages") {
+      const query = args.query as string;
+      const spaceId = (args.space_id as string) || DEFAULT_SPACE_ID;
+      
+      if (!spaceId) {
+        throw new Error("space_id is required for search. Provide it as an argument or set BUILDIN_SPACE_ID env var.");
+      }
+
+      const body = {
+        page: 1,
+        perPage: 20,
+        query: query,
+        source: 'quickFind',
+        sort: 'relevance',
+        filters: { createdBy: [], ancestors: [] }
+      };
+
+      const data = await buildinFetch("POST", `/api/search/${spaceId}/docs`, body);
+      const payload = data?.data || {};
+      const results = payload.results || [];
+      const blocks = payload.recordMap?.blocks || {};
+      const total = payload.total || 0;
+
+      if (results.length === 0) {
+        return {
+          content: [{ type: "text", text: "No results found." }]
+        };
+      }
+
+      const lines = [`Found ${total} results (showing ${results.length}):\n`];
+      
+      for (const r of results) {
+        const pId = r.pageId || r.uuid || '';
+        const hit = r.hitText || '';
+        const block = blocks[pId] || {};
+        const title = block.title || hit;
+        const spId = block.spaceId || r.spaceId || '';
+        
+        lines.push(`  ${title}`);
+        lines.push(`    ID: ${pId}`);
+        lines.push(`    URL: https://buildin.ai/${spId}/${pId}`);
+        if (hit && hit !== title) {
+          lines.push(`    Hit: ${hit.substring(0, 100)}...`);
+        }
+        lines.push('');
+      }
+
+      return {
+        content: [{ type: "text", text: lines.join('\n') }],
+      };
+    }
+
+    throw new Error(`Tool not found: ${name}`);
+  } catch (error: any) {
     return {
+      isError: true,
       content: [
         {
           type: "text",
-          text: "pong",
+          text: error.message,
         },
       ],
     };
   }
-
-  throw new Error(`Tool not found: ${request.params.name}`);
 });
 
 async function run() {
