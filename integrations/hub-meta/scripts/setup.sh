@@ -87,16 +87,13 @@ EOF
     case "$mcp_status" in
         ready)
             cat <<EOF
-Holst: MCP установлен. Чтобы Holst-скиллы (/ai-hub:holst-export, /ai-hub:holst-write)
-заработали, нужно ОДНОКРАТНО перезапустить сессию агента — MCP-серверы подгружаются
+Holst и Buildin MCP: серверы установлены. Чтобы они заработали, нужно
+ОДНОКРАТНО перезапустить сессию агента — MCP-серверы подгружаются
 только при старте. Скажи юзеру:
 
-  > «Для Holst перезапусти меня: выйди (Ctrl+C / /exit) и запусти снова. После
-  >  рестарта первое что нужно — залогиниться в Holst (один раз): скажи «настрой Holst»,
-  >  я открою app.holst.so через MCP и ты зайдёшь через Google SSO.»
+  > «Я настроил MCP-серверы. Перезапусти меня: выйди (Ctrl+C / /exit) и запусти снова.»
 
-Если Holst сейчас не нужен — рестарт можно отложить. Buildin/Time/Kaiten работают
-без него.
+Если новые фичи сейчас не нужны — рестарт можно отложить.
 EOF
             ;;
         failed)
@@ -150,43 +147,39 @@ EOF
 check_1() { is_marked mcp_ready || is_skipped install_mcp; }
 say_1() {
     cat <<EOF
-Финальный шаг — Chrome DevTools MCP. Автоматический, без вопросов юзеру.
+Финальный шаг — Установка MCP-серверов. Автоматический, без вопросов юзеру.
 
-MCP нужен ТОЛЬКО для /ai-hub:holst-export / /ai-hub:holst-write (доски Holst
-работают через живую страницу внутри MCP-браузера). Buildin, Time, Kaiten и
-вся остальная функциональность УЖЕ работает без MCP.
+Здесь мы ставим:
+1. Chrome DevTools MCP (нужен ТОЛЬКО для /ai-hub:holst-export / /ai-hub:holst-write).
+2. Buildin MCP (новый сервер для чтения и поиска по Buildin).
 
 АЛГОРИТМ:
 
-1. Проверь сначала — может MCP уже работает: попробуй вызвать
-   mcp__chrome-devtools__list_pages (или любой другой mcp__chrome-devtools__*).
+1. Сначала проверь:
+   - Отвечает ли \`mcp__chrome-devtools__list_pages\`?
+   - Отвечает ли \`mcp__buildin-mcp__buildin_search_pages\`?
 
-2a. Если MCP ОТВЕТИЛ — он уже установлен и загружен:
-      $0 mark mcp_ready
-      $0 next
+2. Поставь недостающие серверы автоматически, без вопросов:
 
-2b. Если MCP НЕ ОТВЕТИЛ — поставь его автоматически, без вопросов юзеру:
-
-      # Claude Code CLI:
+      # Для Chrome DevTools:
       claude mcp add chrome-devtools -- npx chrome-devtools-mcp@latest
 
-      # Codex / Cursor / Windsurf — добавь запись в их MCP-конфиг:
-      { "chrome-devtools": { "command": "npx", "args": ["chrome-devtools-mcp@latest"] } }
+      # Для Buildin MCP (Используй АБСОЛЮТНЫЙ ПУТЬ к текущей директории):
+      claude mcp add buildin-mcp -- node "\$(pwd)/integrations/buildin-mcp/build/index.js"
 
-    Если УСПЕХ (команда вернула 0 / запись добавилась):
+    Если УСПЕХ (команды вернули 0):
       $0 mark mcp_ready
       $0 next
-      (done_banner сам предупредит про рестарт для Holst)
+      (done_banner предупредит про рестарт для Holst и Buildin MCP)
 
-    Если УСТАНОВКА НЕ УДАЛАСЬ (нет npx, нет claude CLI, permission denied и т.п.):
+    Если УСТАНОВКА НЕ УДАЛАСЬ:
       $0 skip install_mcp
       $0 next
-      (done_banner пометит что Holst работать не будет)
 
 3. ЗАПРЕЩЕНО:
    • спрашивать юзера «поставить MCP?» — ставь сам, молча.
    • перезапускать сессию агента во время setup'а — рестарт нужен только ПОСЛЕ
-     setup'а и только если юзер захочет Holst. Про это скажет done_banner.
+     setup'а. Про это скажет done_banner.
 EOF
 }
 

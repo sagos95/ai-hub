@@ -1,1 +1,0 @@
-../../../integrations/buildin/commands/read-page.md
