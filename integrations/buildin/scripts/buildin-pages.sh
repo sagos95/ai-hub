@@ -15,6 +15,7 @@
 #   archive <page_id>                      — архивировать страницу (status: -1)
 #   get-blocks <page_id>                   — получить блоки страницы (JSON)
 #   append-blocks <page_id> <json_blocks>              — добавить блоки на страницу (transaction)
+#                                                        блоки могут иметь "children" (таблицы/toggle/вложенные списки)
 #   insert-blocks-after <page_id> <after_block_id> <json_blocks>  — вставить блоки после конкретного блока
 #   append-text <page_id> <text>                       — добавить текстовый параграф
 #   delete-block <block_id> <parent_id>                — удалить блок
@@ -306,7 +307,8 @@ print()
 
 # Block types: 0=page, 1=paragraph, 3=todo, 4=bulleted, 5=numbered, 6=toggle,
 #              7=heading, 9=divider, 12=quote, 13=callout, 14=image,
-#              21=bookmark, 23=equation, 25=code
+#              21=bookmark, 23=equation, 25=code, 27=table (rows=28),
+#              38=toggle-heading
 def rt(segments):
     parts = []
     for s in (segments or []):
@@ -358,6 +360,27 @@ def render(node_ids, indent=0):
             h = '#' * min(level + 1, 4)
             print(f'{pfx}{h} {text}')
             print()
+        elif t == 38:
+            # Сворачиваемый заголовок-секция — round-trip с маркером <!-- collapse -->
+            h = '#' * min(level + 1, 4)
+            print(f'{pfx}<!-- collapse -->')
+            print(f'{pfx}{h} {text}')
+            print()
+        elif t == 27:
+            # Таблица: строки — дети типа 28, ячейки в collectionProperties
+            fmt = d.get('format', {})
+            cols = fmt.get('tableBlockColumnOrder', [])
+            rows = []
+            for rid in sub:
+                rb = blocks.get(rid, {})
+                cp = rb.get('data', {}).get('collectionProperties', {})
+                rows.append([rt(cp.get(c, [])) for c in cols])
+            for ri, row in enumerate(rows):
+                print(f'{pfx}| ' + ' | '.join(row) + ' |')
+                if ri == 0 and fmt.get('tableBlockRowHeader'):
+                    print(f'{pfx}| ' + ' | '.join(['---'] * len(cols)) + ' |')
+            print()
+            continue
         elif t == 9:
             print(f'{pfx}---')
             print()
@@ -381,7 +404,8 @@ def render(node_ids, indent=0):
             print(f'{pfx}$$ {text} $$')
             print()
         elif t == 25:
-            lang = d.get('language', '')
+            # Buildin хранит язык в format.language (data.language = null)
+            lang = (d.get('language') or d.get('format', {}).get('language', '') or '').lower()
             print(f'{pfx}\`\`\`{lang}')
             print(f'{pfx}{text}')
             print(f'{pfx}\`\`\`')
@@ -406,63 +430,7 @@ render(page.get('subNodes', []))
         NOW=$(python3 -c "import time; print(int(time.time()*1000))")
         USER_ID=$(buildin GET "/api/users/me" | python3 -c "import sys,json; print(json.load(sys.stdin).get('data',{}).get('uuid',''))")
 
-        OPS=$(python3 -c "
-import json, sys, uuid
-
-page_id = sys.argv[1]
-space_id = sys.argv[2]
-now = int(sys.argv[3])
-user_id = sys.argv[4]
-blocks_json = sys.argv[5]
-
-blocks = json.loads(blocks_json)
-ops = []
-
-for block in blocks:
-    block_id = str(uuid.uuid4())
-    block_type = block.get('type', 1)
-    block_data = block.get('data', {})
-
-    ops.append({
-        'id': block_id,
-        'command': 'set',
-        'table': 'block',
-        'path': [],
-        'args': {
-            'uuid': block_id,
-            'spaceId': space_id,
-            'parentId': page_id,
-            'type': block_type,
-            'textColor': '',
-            'backgroundColor': '',
-            'status': 1,
-            'permissions': [],
-            'createdAt': now,
-            'createdBy': user_id,
-            'updatedBy': user_id,
-            'updatedAt': now,
-            'data': {**{'pageFixedWidth': True, 'format': {'commentAlignment': 'top'}}, **block_data}
-        }
-    })
-    ops.append({
-        'id': page_id,
-        'command': 'listAfter',
-        'table': 'block',
-        'path': ['subNodes'],
-        'args': {'uuid': block_id}
-    })
-
-# Update page timestamp
-ops.append({
-    'id': page_id,
-    'command': 'update',
-    'table': 'block',
-    'path': [],
-    'args': {'updatedBy': user_id, 'updatedAt': now}
-})
-
-print(json.dumps(ops))
-" "$PAGE_ID" "$SPACE_ID" "$NOW" "$USER_ID" "$BLOCKS_JSON")
+        OPS=$(python3 "$SCRIPT_DIR/buildin-blocks.py" "$PAGE_ID" "$SPACE_ID" "$NOW" "$USER_ID" "$BLOCKS_JSON")
 
         transaction "$SPACE_ID" "$OPS"
         ;;
@@ -477,65 +445,7 @@ print(json.dumps(ops))
         NOW=$(python3 -c "import time; print(int(time.time()*1000))")
         USER_ID=$(buildin GET "/api/users/me" | python3 -c "import sys,json; print(json.load(sys.stdin).get('data',{}).get('uuid',''))")
 
-        OPS=$(python3 -c "
-import json, sys, uuid
-
-page_id = sys.argv[1]
-after_block_id = sys.argv[2]
-space_id = sys.argv[3]
-now = int(sys.argv[4])
-user_id = sys.argv[5]
-blocks_json = sys.argv[6]
-
-blocks = json.loads(blocks_json)
-ops = []
-prev_id = after_block_id
-
-for block in blocks:
-    block_id = str(uuid.uuid4())
-    block_type = block.get('type', 1)
-    block_data = block.get('data', {})
-
-    ops.append({
-        'id': block_id,
-        'command': 'set',
-        'table': 'block',
-        'path': [],
-        'args': {
-            'uuid': block_id,
-            'spaceId': space_id,
-            'parentId': page_id,
-            'type': block_type,
-            'textColor': '',
-            'backgroundColor': '',
-            'status': 1,
-            'permissions': [],
-            'createdAt': now,
-            'createdBy': user_id,
-            'updatedBy': user_id,
-            'updatedAt': now,
-            'data': {**{'pageFixedWidth': True, 'format': {'commentAlignment': 'top'}}, **block_data}
-        }
-    })
-    ops.append({
-        'id': page_id,
-        'command': 'listAfter',
-        'table': 'block',
-        'path': ['subNodes'],
-        'args': {'uuid': block_id, 'after': prev_id}
-    })
-    prev_id = block_id
-
-ops.append({
-    'id': page_id,
-    'command': 'update',
-    'table': 'block',
-    'path': [],
-    'args': {'updatedBy': user_id, 'updatedAt': now}
-})
-
-print(json.dumps(ops))
-" "$PAGE_ID" "$AFTER_BLOCK_ID" "$SPACE_ID" "$NOW" "$USER_ID" "$BLOCKS_JSON")
+        OPS=$(python3 "$SCRIPT_DIR/buildin-blocks.py" "$PAGE_ID" "$SPACE_ID" "$NOW" "$USER_ID" "$BLOCKS_JSON" "$AFTER_BLOCK_ID")
 
         transaction "$SPACE_ID" "$OPS"
         ;;
