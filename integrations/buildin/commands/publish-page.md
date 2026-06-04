@@ -58,78 +58,53 @@ bash integrations/buildin/scripts/buildin-pages.sh create "<parent_page_id>" "<t
 
 Если есть контент для публикации:
 
-1. Преобразуй markdown/текст в блоки Buildin UI API:
+#### Вариант A (рекомендуется): markdown-файл через конвертер
 
-   Block types (числовые):
-   - `1` — paragraph (обычный текст; не todo/не checkbox)
-   - `3` — todo list item (используй только когда нужен checkbox)
-   - `4` — bulleted list item
-   - `5` — numbered list item
-   - `6` — toggle/collapsible
-   - `7` — heading (level: 1/2/3)
-   - `9` — divider
-   - `12` — quote/blockquote
-   - `13` — callout
-   - `23` — equation (LaTeX)
-   - `25` — code block
+Если контент — это markdown-файл, используй готовый конвертер. Он сам собирает
+расширенные блоки (таблицы, сворачиваемые секции, вложенные списки, mermaid):
 
-   Segment format:
-   ```json
-   {"type": 0, "text": "Hello", "enhancer": {"bold": true}}
-   ```
+```bash
+DIR=integrations/buildin/scripts
+python3 $DIR/md-to-blocks.py "<path/to/doc.md>" > /tmp/blocks.json
+bash $DIR/buildin-pages.sh append-blocks "<page_id>" "$(cat /tmp/blocks.json)"
+```
 
-   Inline code segment:
-   ```json
-   {"type": 0, "text": "BasisName", "enhancer": {"code": true}}
-   ```
+Поддержка markdown:
+- `#`…`###` → заголовок (7); `<!-- collapse -->` перед заголовком → сворачиваемая секция (38)
+- `-`/`*` (вложенность по отступу) → список (4); `1.` → нумерованный (5); `- [ ]` → чек-лист (3)
+- `> текст` (ведущий эмодзи → иконка) → callout (13)
+- `---` → divider (9); ` ```lang ` → код (25); ` ```mermaid ` → диаграмма с preview
+- `| таблица |` → нативная таблица (27 + строки 28)
+- inline: `**bold**`, `*italic*`, `` `code` ``, `[t](url)`
 
-   Link segment (type 3):
-   ```json
-   {"type": 3, "text": "click", "url": "https://...", "enhancer": {}}
-   ```
+#### Вариант B: ручная сборка блоков (JSON)
 
-2. Отправляй блоки батчами:
+Block types (числовые):
+- `1` — paragraph · `3` — todo · `4` — bulleted · `5` — numbered · `7` — heading (`level` 1–3)
+- `9` — divider · `12` — quote · `13` — callout (`icon`) · `23` — equation
+- `25` — code (`format.language`; mermaid + `format.codePreviewFormat:"preview"`)
+- `38` — сворачиваемый заголовок-секция (`level` 1–4) · `27` — таблица + строки `28`
 
-   **В конец страницы:**
-   ```bash
-   bash integrations/buildin/scripts/buildin-pages.sh append-blocks "<page_id>" '<json_array>'
-   ```
+Вложенные блоки задаются полем `children` — `append-blocks` создаёт их с правильным
+`parentId`/`subNodes` (toggle с детьми, строки таблицы, подпункты списков):
 
-   **После конкретного блока** (нужен `block_id` существующего блока — получи через `get-blocks`):
-   ```bash
-   bash integrations/buildin/scripts/buildin-pages.sh insert-blocks-after "<page_id>" "<after_block_id>" '<json_array>'
-   ```
+```json
+{"type": 38, "data": {"level": 1, "segments": [{"type": 0, "text": "Секция", "enhancer": {}}]},
+ "children": [{"type": 1, "data": {"segments": [{"type": 0, "text": "внутри", "enhancer": {}}]}}]}
+```
 
-   Каждый элемент массива:
-   ```json
-   {"type": 1, "data": {"segments": [{"type": 0, "text": "Hello", "enhancer": {}}]}}
-   ```
+Segment-формат: `{"type": 0, "text": "Hello", "enhancer": {"bold": true}}`;
+inline-код `enhancer:{"code": true}`; ссылка `{"type": 3, "text": "click", "url": "https://…", "enhancer": {}}`.
 
-   Heading:
-   ```json
-   {"type": 7, "data": {"level": 2, "segments": [{"type": 0, "text": "Title", "enhancer": {}}]}}
-   ```
+Отправка блоков:
 
-   Toggle:
-   ```json
-   {"type": 6, "data": {"segments": [{"type": 0, "text": "Toggle header", "enhancer": {}}]}}
-   ```
+```bash
+# В конец страницы
+bash integrations/buildin/scripts/buildin-pages.sh append-blocks "<page_id>" '<json_array>'
 
-   Quote:
-   ```json
-   {"type": 12, "data": {"segments": [{"type": 0, "text": "Quoted text", "enhancer": {}}]}}
-   ```
-
-   Divider:
-   ```json
-   {"type": 9, "data": {}}
-   ```
-
-   Получить block_id нужного блока:
-   ```bash
-   bash integrations/buildin/scripts/buildin-pages.sh get-blocks "<page_id>" > /tmp/blocks.json
-   # затем в Python: json.load(open('/tmp/blocks.json')) — поле "uuid" каждого блока
-   ```
+# После конкретного блока (block_id получи через get-blocks)
+bash integrations/buildin/scripts/buildin-pages.sh insert-blocks-after "<page_id>" "<after_block_id>" '<json_array>'
+```
 
 ### Фаза 5: Результат
 
