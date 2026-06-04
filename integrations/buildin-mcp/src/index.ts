@@ -1,6 +1,7 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import crypto from 'crypto';
 import { searchShadowIndex, updateShadowIndex } from "./shadow.js";
 
 const BUILDIN_UI_TOKEN = process.env.BUILDIN_UI_TOKEN;
@@ -45,8 +46,36 @@ async function buildinFetch(method: string, endpoint: string, body: any = null):
 }
 
 /**
- * Extract UUID from string or URL
+ * Execute a Buildin UI API transaction
  */
+async function buildinTransaction(spaceId: string, operations: any[]) {
+  const reqId = crypto.randomUUID();
+  const txId = crypto.randomUUID();
+  
+  const body = {
+    requestId: reqId,
+    transactions: [{
+      id: txId,
+      spaceId: spaceId,
+      operations: operations
+    }]
+  };
+  
+  return await buildinFetch("POST", "/api/records/transactions", body);
+}
+
+/**
+ * Get spaceId and current userId from Buildin
+ */
+async function getSpaceId(pageId: string): Promise<string> {
+  const res = await buildinFetch("GET", `/api/blocks/${pageId}`);
+  return res?.data?.spaceId || '';
+}
+
+async function getUserId(): Promise<string> {
+  const res = await buildinFetch("GET", "/api/users/me");
+  return res?.data?.uuid || '';
+}
 function parseId(input: string): string {
   const uuidRe = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
   const match = input.match(uuidRe);
@@ -233,6 +262,42 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           },
           required: ["query"],
         },
+      },
+      {
+        name: "buildin_create_page",
+        description: "Create a new page in Buildin.ai as a child of parent_page_id",
+        inputSchema: {
+          type: "object",
+          properties: {
+            parent_page_id: { type: "string", description: "UUID or URL of the parent page" },
+            title: { type: "string", description: "Title of the new page" }
+          },
+          required: ["parent_page_id", "title"],
+        },
+      },
+      {
+        name: "buildin_update_page",
+        description: "Update the title of an existing Buildin page",
+        inputSchema: {
+          type: "object",
+          properties: {
+            page_id: { type: "string", description: "UUID or URL of the page" },
+            title: { type: "string", description: "New title of the page" }
+          },
+          required: ["page_id", "title"],
+        },
+      },
+      {
+        name: "buildin_append_blocks",
+        description: "Append content blocks to the end of a Buildin page. Blocks are JSON array. Use block type 1 for text.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            page_id: { type: "string", description: "UUID or URL of the page" },
+            blocks_json: { type: "string", description: "JSON array of block objects. Example: [{\"type\":1,\"data\":{\"segments\":[{\"type\":0,\"text\":\"Hello\"}]}}]" }
+          },
+          required: ["page_id", "blocks_json"],
+        },
       }
     ],
   };
@@ -369,6 +434,193 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       return {
         content: [{ type: "text", text: lines.join('\n') }],
+      };
+    }
+
+    if (name === "buildin_create_page") {
+      const parentId = parseId(args.parent_page_id as string);
+      const title = args.title as string;
+
+      const spaceId = await getSpaceId(parentId);
+      if (!spaceId) {
+        throw new Error(`Cannot determine spaceId for parent ${parentId}`);
+      }
+
+      const userId = await getUserId();
+      const pageId = crypto.randomUUID();
+      const blockId = crypto.randomUUID();
+      const now = Date.now();
+
+      const ops = [
+        {
+          id: pageId,
+          command: 'set',
+          table: 'block',
+          path: [],
+          args: {
+            uuid: pageId,
+            spaceId: spaceId,
+            parentId: parentId,
+            type: 0,
+            textColor: '',
+            backgroundColor: '',
+            status: 1,
+            permissions: [],
+            createdAt: now,
+            createdBy: userId,
+            updatedBy: userId,
+            updatedAt: now,
+            data: {
+              segments: [{ type: 0, text: title, enhancer: {} }],
+              pageFixedWidth: true,
+              format: { commentAlignment: 'top' }
+            }
+          }
+        },
+        {
+          id: parentId,
+          command: 'listAfter',
+          table: 'block',
+          path: ['subNodes'],
+          args: { uuid: pageId }
+        },
+        {
+          id: blockId,
+          command: 'set',
+          table: 'block',
+          path: [],
+          args: {
+            uuid: blockId,
+            spaceId: spaceId,
+            parentId: pageId,
+            type: 1,
+            textColor: '',
+            backgroundColor: '',
+            status: 1,
+            permissions: [],
+            createdAt: now,
+            createdBy: userId,
+            updatedBy: userId,
+            updatedAt: now,
+            data: {
+              pageFixedWidth: true,
+              format: { commentAlignment: 'top' }
+            }
+          }
+        },
+        {
+          id: pageId,
+          command: 'listAfter',
+          table: 'block',
+          path: ['subNodes'],
+          args: { uuid: blockId }
+        },
+        {
+          id: parentId,
+          command: 'update',
+          table: 'block',
+          path: [],
+          args: { updatedBy: userId, updatedAt: now }
+        }
+      ];
+
+      await buildinTransaction(spaceId, ops);
+
+      return {
+        content: [{ type: "text", text: `Created page: ${pageId}\nURL: https://buildin.ai/${spaceId}/${pageId}` }],
+      };
+    }
+
+    if (name === "buildin_update_page") {
+      const pageId = parseId(args.page_id as string);
+      const title = args.title as string;
+
+      const spaceId = await getSpaceId(pageId);
+      const userId = await getUserId();
+      const now = Date.now();
+
+      const ops = [
+        {
+          id: pageId,
+          command: 'update',
+          table: 'block',
+          path: ['data'],
+          args: { segments: [{ type: 0, text: title, enhancer: {} }] }
+        },
+        {
+          id: pageId,
+          command: 'update',
+          table: 'block',
+          path: [],
+          args: { updatedBy: userId, updatedAt: now }
+        }
+      ];
+
+      await buildinTransaction(spaceId, ops);
+
+      return {
+        content: [{ type: "text", text: `Updated page title for: ${pageId}` }],
+      };
+    }
+
+    if (name === "buildin_append_blocks") {
+      const pageId = parseId(args.page_id as string);
+      const blocksJsonStr = args.blocks_json as string;
+      const blocks = JSON.parse(blocksJsonStr);
+
+      const spaceId = await getSpaceId(pageId);
+      const userId = await getUserId();
+      const now = Date.now();
+      const ops = [];
+
+      for (const block of blocks) {
+        const blockId = crypto.randomUUID();
+        const blockType = block.type ?? 1;
+        const blockData = block.data || {};
+
+        ops.push({
+          id: blockId,
+          command: 'set',
+          table: 'block',
+          path: [],
+          args: {
+            uuid: blockId,
+            spaceId: spaceId,
+            parentId: pageId,
+            type: blockType,
+            textColor: '',
+            backgroundColor: '',
+            status: 1,
+            permissions: [],
+            createdAt: now,
+            createdBy: userId,
+            updatedBy: userId,
+            updatedAt: now,
+            data: { pageFixedWidth: true, format: { commentAlignment: 'top' }, ...blockData }
+          }
+        });
+
+        ops.push({
+          id: pageId,
+          command: 'listAfter',
+          table: 'block',
+          path: ['subNodes'],
+          args: { uuid: blockId }
+        });
+      }
+
+      ops.push({
+        id: pageId,
+        command: 'update',
+        table: 'block',
+        path: [],
+        args: { updatedBy: userId, updatedAt: now }
+      });
+
+      await buildinTransaction(spaceId, ops);
+
+      return {
+        content: [{ type: "text", text: `Successfully appended ${blocks.length} blocks to page ${pageId}` }],
       };
     }
 
