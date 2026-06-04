@@ -3,6 +3,16 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import crypto from 'crypto';
 import { searchShadowIndex, updateShadowIndex } from "./shadow.js";
+import * as dotenv from 'dotenv';
+import path from 'path';
+import os from 'os';
+
+const homeDir = os.homedir();
+const pluginsEnvPath = path.join(homeDir, '.copilot/installed-plugins/.env');
+const repoEnvPath = path.join(path.resolve('.'), '.env');
+
+dotenv.config({ path: repoEnvPath });
+dotenv.config({ path: pluginsEnvPath });
 
 const BUILDIN_UI_TOKEN = process.env.BUILDIN_UI_TOKEN;
 const BUILDIN_BASE_URL = "https://buildin.ai";
