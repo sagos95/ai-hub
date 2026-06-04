@@ -5,7 +5,7 @@ import { dirname, resolve } from "path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, "../../..");
-const mcpBuildPath = resolve(repoRoot, "integrations/buildin-mcp/build/index.js");
+const mcpBuildPath = resolve(repoRoot, "integrations/buildin-mcp/index.mjs");
 
 async function callMcpTool(toolName, toolArgs) {
   return new Promise((resolve, reject) => {

@@ -2,20 +2,9 @@
   "name": "buildin-mcp",
   "version": "1.0.0",
   "description": "MCP server for Buildin integration",
-  "main": "build/index.js",
+  "type": "module",
+  "main": "index.mjs",
   "scripts": {
-    "build": "esbuild src/index.ts --bundle --platform=node --target=node18 --outfile=build/index.js --format=cjs",
-    "build:types": "tsc --noEmit",
-    "watch": "tsc --watch",
-    "start": "node build/index.js"
-  },
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0",
-    "dotenv": "^17.4.2"
-  },
-  "devDependencies": {
-    "@types/node": "^20.0.0",
-    "esbuild": "^0.28.0",
-    "typescript": "^5.0.0"
+    "start": "node index.mjs"
   }
 }
