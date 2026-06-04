@@ -1,0 +1,1 @@
+../../../integrations/buildin/commands/publish-page.md
