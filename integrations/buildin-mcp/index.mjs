@@ -132,7 +132,10 @@ function renderBlocksToMarkdown(nodeIds, blocks, indent = 0) {
       case 14: lines.push(`${pfx}![${text}](${d.ossName || ''})\n`); break;
       case 21: lines.push(`${pfx}[${text || d.link || ''}](${d.link || ''})\n`); break;
       case 23: lines.push(`${pfx}$$ ${text} $$\n`); break;
-      case 25: lines.push(`${pfx}\`\`\`${d.language || ''}`, `${pfx}${text}`, `${pfx}\`\`\`\n`); break;
+      case 25: lines.push(`${pfx}\`\`\`${d.format?.language || d.language || ''}`, `${pfx}${text}`, `${pfx}\`\`\`\n`); break;
+      case 27: lines.push(''); break; // table container — rows rendered via subNodes
+      case 28: { const cells = Object.values(d.collectionProperties || {}).map(p => renderSegments(p?.value?.[0]?.segments)).join(' | '); if (cells) lines.push(`${pfx}| ${cells} |`); break; }
+      case 38: lines.push(`${pfx}▶ ${text}\n`); break; // toggle/collapsible heading
       default: if (text) lines.push(`${pfx}${text}\n`); break;
     }
 
@@ -207,28 +210,32 @@ BLOCK TYPES (use the "type" field):
   3  = checkbox      — data: {checked:bool, segments:[...]}
   4  = bullet list item
   5  = numbered list item
-  6  = toggle (collapsible)
+  6  = simple toggle
   7  = heading       — data: {level:1|2|3, segments:[...]}
-  9  = divider       — data: {} (no content)
+  9  = divider       — data: {}
   12 = blockquote
   13 = callout       — data: {icon:{value:"🔥"}, segments:[...]}
   14 = image         — data: {ossName:"https://..."}
-  21 = link/bookmark — data: {link:"https://...", segments:[{text:"label"}]}
+  21 = link/bookmark — data: {link:"https://...", segments:[...]}
   23 = math/equation
-  25 = code block    — data: {language:"js", segments:[{text:"code"}]}
+  25 = code block    — data: {language:null, format:{language:"Python"}, segments:[{text:"code"}]}
+                       Mermaid: format:{language:"Mermaid",codePreviewFormat:"preview"}
+  27 = table         — data: {format:{tableBlockColumnOrder:[...]}}, rows in children (type 28)
+  28 = table row     — data: {collectionProperties:{<colId>:{value:[{segments:[...]}]}}}
+  38 = toggle/collapsible heading — children rendered inside
 
-SEGMENTS format: [{"type":0,"text":"content"}]
-  Enhancers (optional): {"type":0,"text":"x","enhancer":{"bold":true}}
-                        {"type":0,"text":"x","enhancer":{"italic":true}}
-                        {"type":0,"text":"x","enhancer":{"code":true}}
-  Link: {"type":0,"text":"label","url":"https://..."}
+SEGMENTS format: [{"type":0,"text":"content","enhancer":{}}]
+  Bold:   {"type":0,"text":"x","enhancer":{"bold":true}}
+  Italic: {"type":0,"text":"x","enhancer":{"italic":true}}
+  Code:   {"type":0,"text":"x","enhancer":{"code":true}}
+  Link:   {"type":3,"text":"label","url":"https://...","enhancer":{}}
 
-Blocks can be nested via "subNodes" array (child block UUIDs are auto-assigned).`,
+Blocks can be nested via "children" array (auto-assigned UUIDs, correct parentId/subNodes).`,
     inputSchema: {
       type: 'object',
       properties: {
         page_id: { type: 'string', description: 'UUID or URL of the page' },
-        blocks_json: { type: 'string', description: 'JSON array of block objects. Examples:\n  Paragraph: [{"type":1,"data":{"segments":[{"type":0,"text":"Hello"}]}}]\n  Heading h2: [{"type":7,"data":{"level":2,"segments":[{"type":0,"text":"Title"}]}}]\n  Bullet: [{"type":4,"data":{"segments":[{"type":0,"text":"item"}]}}]\n  Code: [{"type":25,"data":{"language":"python","segments":[{"type":0,"text":"print(1)"}]}}]\n  Divider: [{"type":9,"data":{}}]' },
+        blocks_json: { type: 'string', description: 'JSON array of block objects. Examples:\n  Paragraph: [{"type":1,"data":{"segments":[{"type":0,"text":"Hello","enhancer":{}}]}}]\n  Heading h2: [{"type":7,"data":{"level":2,"segments":[{"type":0,"text":"Title","enhancer":{}}]}}]\n  Bullet: [{"type":4,"data":{"segments":[{"type":0,"text":"item","enhancer":{}}]}}]\n  Code: [{"type":25,"data":{"language":null,"format":{"language":"Python"},"segments":[{"type":0,"text":"print(1)","enhancer":{}}]}}]\n  Divider: [{"type":9,"data":{}}]\n  Toggle: [{"type":38,"data":{"segments":[{"type":0,"text":"Section","enhancer":{}}]},"children":[...]}]' },
       },
       required: ['page_id', 'blocks_json'],
     },
