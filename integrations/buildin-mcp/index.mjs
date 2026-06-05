@@ -200,12 +200,35 @@ const TOOLS = [
   },
   {
     name: 'buildin_append_blocks',
-    description: 'Append content blocks to the end of a Buildin page. Blocks are JSON array. Use block type 1 for text.',
+    description: `Append content blocks to the end of a Buildin page.
+
+BLOCK TYPES (use the "type" field):
+  1  = paragraph/text (default)
+  3  = checkbox      — data: {checked:bool, segments:[...]}
+  4  = bullet list item
+  5  = numbered list item
+  6  = toggle (collapsible)
+  7  = heading       — data: {level:1|2|3, segments:[...]}
+  9  = divider       — data: {} (no content)
+  12 = blockquote
+  13 = callout       — data: {icon:{value:"🔥"}, segments:[...]}
+  14 = image         — data: {ossName:"https://..."}
+  21 = link/bookmark — data: {link:"https://...", segments:[{text:"label"}]}
+  23 = math/equation
+  25 = code block    — data: {language:"js", segments:[{text:"code"}]}
+
+SEGMENTS format: [{"type":0,"text":"content"}]
+  Enhancers (optional): {"type":0,"text":"x","enhancer":{"bold":true}}
+                        {"type":0,"text":"x","enhancer":{"italic":true}}
+                        {"type":0,"text":"x","enhancer":{"code":true}}
+  Link: {"type":0,"text":"label","url":"https://..."}
+
+Blocks can be nested via "subNodes" array (child block UUIDs are auto-assigned).`,
     inputSchema: {
       type: 'object',
       properties: {
         page_id: { type: 'string', description: 'UUID or URL of the page' },
-        blocks_json: { type: 'string', description: 'JSON array of block objects. Example: [{"type":1,"data":{"segments":[{"type":0,"text":"Hello"}]}}]' },
+        blocks_json: { type: 'string', description: 'JSON array of block objects. Examples:\n  Paragraph: [{"type":1,"data":{"segments":[{"type":0,"text":"Hello"}]}}]\n  Heading h2: [{"type":7,"data":{"level":2,"segments":[{"type":0,"text":"Title"}]}}]\n  Bullet: [{"type":4,"data":{"segments":[{"type":0,"text":"item"}]}}]\n  Code: [{"type":25,"data":{"language":"python","segments":[{"type":0,"text":"print(1)"}]}}]\n  Divider: [{"type":9,"data":{}}]' },
       },
       required: ['page_id', 'blocks_json'],
     },

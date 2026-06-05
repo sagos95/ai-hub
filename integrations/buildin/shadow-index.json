@@ -4,5 +4,13 @@
     "root_page_id": "YOUR_ROOT_PAGE_ID",
     "root_page_title": "Your Organization"
   },
-  "pages": {}
+  "pages": {
+    "ba7bc774-697c-4add-82bc-be76c390c210": {
+      "title": "Переезд на новую версию драйвера MongoDB",
+      "parent_id": null,
+      "summary": "Документация по миграции на новую версию MongoDB драйвера.",
+      "url": "https://buildin.ai/docs/ba7bc774-697c-4add-82bc-be76c390c210",
+      "synced_at": "2026-06-05"
+    }
+  }
 }
