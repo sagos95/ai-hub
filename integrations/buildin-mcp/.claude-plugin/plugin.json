@@ -1,0 +1,5 @@
+{
+  "name": "buildin-mcp",
+  "version": "1.0.0",
+  "description": "Buildin.ai MCP server — read, search, create and edit wiki pages via native MCP tools (8 tools, zero dependencies)"
+}
