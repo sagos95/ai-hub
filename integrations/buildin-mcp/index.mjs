@@ -4,7 +4,6 @@ import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { randomUUID } from 'node:crypto';
-import { searchShadowIndex, updateShadowIndex } from './shadow.mjs';
 
 // ---------------------------------------------------------------------------
 // Load .env files (replaces dotenv)
@@ -248,11 +247,7 @@ async function executeTool(name, args) {
         const spaceId = DEFAULT_SPACE_ID;
         if (!spaceId) throw new Error('space_id is required for search fallback. Provide BUILDIN_SPACE_ID env var.');
 
-        const shadowMatchId = searchShadowIndex(query);
-        if (shadowMatchId) {
-          pageId = shadowMatchId;
-        } else {
-          const searchData = await buildinFetch('POST', `/api/search/${spaceId}/docs`, {
+        const searchData = await buildinFetch('POST', `/api/search/${spaceId}/docs`, {
             page: 1, perPage: 5, query, source: 'quickFind', sort: 'relevance',
             filters: { createdBy: [], ancestors: [] },
           });
@@ -261,7 +256,6 @@ async function executeTool(name, args) {
             return { content: [{ type: 'text', text: `No pages found matching query: "${query}"` }] };
           }
           pageId = results[0].pageId || results[0].uuid;
-        }
       }
 
       const data = await buildinFetch('GET', `/api/docs/${pageId}`);
@@ -271,7 +265,6 @@ async function executeTool(name, args) {
       const title = page.title || '(untitled)';
       const lines = [`# ${title}\n`];
       const fullMarkdown = lines.concat(renderBlocksToMarkdown(page.subNodes || [], blocks)).join('\n');
-      updateShadowIndex(pageId, title, fullMarkdown, page.parentId);
       return { content: [{ type: 'text', text: fullMarkdown }] };
     }
 
