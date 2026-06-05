@@ -87,7 +87,7 @@ EOF
     case "$mcp_status" in
         ready)
             cat <<EOF
-Holst и Buildin MCP: серверы установлены. Чтобы они заработали, нужно
+Holst MCP: сервер установлен. Чтобы он заработал, нужно
 ОДНОКРАТНО перезапустить сессию агента — MCP-серверы подгружаются
 только при старте. Скажи юзеру:
 
@@ -141,36 +141,27 @@ EOF
 }
 
 # Step 6 (was 1) — Chrome DevTools MCP. Автоматическая установка.
-# Buildin/Time уже работают через cookie extraction; MCP нужен ТОЛЬКО для Holst.
-# Агент тихо ставит MCP (если нет); при неудаче — помечает как skipped и идёт
-# к DONE с предупреждением что Holst работать не будет.
+# Нужен ТОЛЬКО для Holst. Агент тихо ставит MCP (если нет); при неудаче —
+# помечает как skipped и идёт к DONE с предупреждением что Holst работать не будет.
 check_1() { is_marked mcp_ready || is_skipped install_mcp; }
 say_1() {
     cat <<EOF
-Финальный шаг — Установка MCP-серверов. Автоматический, без вопросов юзеру.
+Финальный шаг — Установка Chrome DevTools MCP. Автоматический, без вопросов юзеру.
 
-Здесь мы ставим:
-1. Chrome DevTools MCP (нужен ТОЛЬКО для /ai-hub:holst-export / /ai-hub:holst-write).
-2. Buildin MCP (новый сервер для чтения и поиска по Buildin).
+Нужен ТОЛЬКО для /ai-hub:holst-export. Buildin MCP регистрируется автоматически через .mcp.json плагина.
 
 АЛГОРИТМ:
 
-1. Сначала проверь:
-   - Отвечает ли \`mcp__chrome-devtools__list_pages\`?
-   - Отвечает ли \`mcp__buildin-mcp__buildin_search_pages\`?
+1. Сначала проверь: отвечает ли \`mcp__chrome-devtools__list_pages\`?
 
-2. Поставь недостающие серверы автоматически, без вопросов:
+2. Если нет — поставь:
 
-      # Для Chrome DevTools:
       claude mcp add chrome-devtools -- npx chrome-devtools-mcp@latest
 
-      # Для Buildin MCP (Используй АБСОЛЮТНЫЙ ПУТЬ к текущей директории):
-      claude mcp add buildin-mcp -- node "\$(pwd)/integrations/buildin-mcp/build/index.js"
-
-    Если УСПЕХ (команды вернули 0):
+    Если УСПЕХ (команда вернула 0):
       $0 mark mcp_ready
       $0 next
-      (done_banner предупредит про рестарт для Holst и Buildin MCP)
+      (done_banner предупредит про рестарт для Holst)
 
     Если УСТАНОВКА НЕ УДАЛАСЬ:
       $0 skip install_mcp
