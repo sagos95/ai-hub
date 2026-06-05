@@ -51,6 +51,17 @@
       "homepage": "https://github.com/sagos95/ai-hub/tree/main/integrations/time"
     },
     {
+      "name": "buildin-mcp",
+      "description": "Buildin.ai MCP server — read, search, create and edit wiki pages via native MCP tools (8 tools, zero dependencies)",
+      "version": "1.0.0",
+      "author": {
+        "name": "AI Hub Contributors"
+      },
+      "source": "./integrations/buildin-mcp",
+      "category": "productivity",
+      "homepage": "https://github.com/sagos95/ai-hub/tree/main/integrations/buildin-mcp"
+    },
+    {
       "name": "buildin",
       "description": "Buildin.ai wiki page management — create and update documentation pages",
       "version": "2.1.2",
