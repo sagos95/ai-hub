@@ -16,7 +16,9 @@
 #   get-blocks <page_id>                   — получить блоки страницы (JSON)
 #   append-blocks <page_id> <json_blocks>              — добавить блоки на страницу (transaction)
 #                                                        блоки могут иметь "children" (таблицы/toggle/вложенные списки)
-#   insert-blocks-after <page_id> <after_block_id> <json_blocks>  — вставить блоки после конкретного блока
+#   insert-blocks-after <page_id> <after_block_id> <json_blocks>   — вставить блоки после конкретного блока
+#   insert-blocks-before <page_id> <before_block_id> <json_blocks> — вставить блоки перед конкретным блоком
+#                                                        (block_id берётся из поля "uuid" в выводе get-blocks)
 #   append-text <page_id> <text>                       — добавить текстовый параграф
 #   delete-block <block_id> <parent_id>                — удалить блок
 
@@ -357,12 +359,14 @@ def render(node_ids, indent=0):
             print(f'{pfx}▶ {text}')
             print()
         elif t == 7:
-            h = '#' * min(level + 1, 4)
+            # level N → N решёток, чтобы round-trip с md-to-blocks.py был точным
+            # (md-to-blocks по умолчанию: '#'→level1, '##'→level2, '###'→level3).
+            h = '#' * min(level, 6)
             print(f'{pfx}{h} {text}')
             print()
         elif t == 38:
             # Сворачиваемый заголовок-секция — round-trip с маркером <!-- collapse -->
-            h = '#' * min(level + 1, 4)
+            h = '#' * min(level, 6)
             print(f'{pfx}<!-- collapse -->')
             print(f'{pfx}{h} {text}')
             print()
@@ -450,6 +454,38 @@ render(page.get('subNodes', []))
         transaction "$SPACE_ID" "$OPS"
         ;;
 
+    insert-blocks-before)
+        PAGE_ID=$(parse_id "$1")
+        BEFORE_BLOCK_ID=$(parse_id "$2")
+        BLOCKS_JSON="$3"
+        [[ -z "$PAGE_ID" || -z "$BEFORE_BLOCK_ID" || -z "$BLOCKS_JSON" ]] && { echo "Usage: insert-blocks-before <page_id|url> <before_block_id> <json_blocks>" >&2; exit 1; }
+
+        # Найти предыдущего соседа целевого блока среди верхнеуровневых блоков
+        # страницы. Если он есть — это обычный insert-after (проверенный путь);
+        # если целевой блок первый — вставляем в начало через listBefore.
+        PREV=$(buildin GET "/api/docs/$PAGE_ID" | python3 -c "
+import json, sys
+page_id, before = sys.argv[1], sys.argv[2]
+blocks = json.load(sys.stdin).get('data', {}).get('blocks', {})
+sub = blocks.get(page_id, {}).get('subNodes', [])
+if before not in sub:
+    sys.stderr.write('not_found')
+    sys.exit(3)
+i = sub.index(before)
+print(sub[i - 1] if i > 0 else '')
+" "$PAGE_ID" "$BEFORE_BLOCK_ID") || { echo "Error: блок $BEFORE_BLOCK_ID не найден среди верхнеуровневых блоков страницы (вложенные блоки не поддерживаются)" >&2; exit 1; }
+
+        if [[ -n "$PREV" ]]; then
+            bash "$SCRIPT_DIR/buildin-pages.sh" insert-blocks-after "$PAGE_ID" "$PREV" "$BLOCKS_JSON"
+        else
+            SPACE_ID=$(get_space_id "$PAGE_ID")
+            NOW=$(python3 -c "import time; print(int(time.time()*1000))")
+            USER_ID=$(buildin GET "/api/users/me" | python3 -c "import sys,json; print(json.load(sys.stdin).get('data',{}).get('uuid',''))")
+            OPS=$(python3 "$SCRIPT_DIR/buildin-blocks.py" "$PAGE_ID" "$SPACE_ID" "$NOW" "$USER_ID" "$BLOCKS_JSON" "" "$BEFORE_BLOCK_ID")
+            transaction "$SPACE_ID" "$OPS"
+        fi
+        ;;
+
     append-text)
         PAGE_ID=$(parse_id "$1")
         TEXT="$2"
@@ -507,9 +543,10 @@ print(json.dumps(ops))
         echo "  create <parent_id|url> <title>           — создать дочернюю страницу"
         echo "  update <id|url> <title>                  — обновить заголовок"
         echo "  archive <id|url>                         — архивировать (status: -1)"
-        echo "  get-blocks <id|url>                      — блоки страницы (JSON)"
+        echo "  get-blocks <id|url>                      — блоки страницы (JSON; id блока в поле uuid)"
         echo "  append-blocks <id|url> <json_blocks>     — добавить блоки в конец страницы"
-        echo "  insert-blocks-after <id|url> <after_block_id> <json_blocks>  — вставить блоки после конкретного блока"
+        echo "  insert-blocks-after <id|url> <after_block_id> <json_blocks>   — вставить блоки после блока"
+        echo "  insert-blocks-before <id|url> <before_block_id> <json_blocks> — вставить блоки перед блоком"
         echo "  append-text <id|url> <text>              — добавить текстовый параграф"
         echo "  delete-block <block_id> [parent_id]      — удалить блок"
         ;;

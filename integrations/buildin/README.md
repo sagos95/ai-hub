@@ -94,6 +94,10 @@ JWT-токен живёт ~30 дней.
 # Добавить блоки (JSON)
 ./integrations/buildin/scripts/buildin-pages.sh append-blocks <id|url> '<json_blocks>'
 
+# Вставить блоки после / перед конкретным блоком (block_id — поле uuid из get-blocks)
+./integrations/buildin/scripts/buildin-pages.sh insert-blocks-after  <id|url> <block_uuid> '<json_blocks>'
+./integrations/buildin/scripts/buildin-pages.sh insert-blocks-before <id|url> <block_uuid> '<json_blocks>'
+
 # Удалить конкретный блок (не страницу!)
 ./integrations/buildin/scripts/buildin-pages.sh delete-block <block_uuid> [parent_id]
 
@@ -104,9 +108,10 @@ JWT-токен живёт ~30 дней.
 ### Расширенные блоки из Markdown
 
 `md-to-blocks.py` конвертирует Markdown-файл в дерево блоков Buildin, а
-`append-blocks`/`insert-blocks-after` создают его целиком — включая **вложенные**
-блоки (таблицы, сворачиваемые секции, многоуровневые списки), которые плоский
-append выразить не может.
+`append-blocks`/`insert-blocks-after`/`insert-blocks-before` создают его целиком —
+включая **вложенные** блоки (таблицы, сворачиваемые секции, многоуровневые списки),
+которые плоский append выразить не может. Маппинг заголовков совпадает с выводом
+`read` (round-trip): `#`→level 1, `##`→level 2, `###`→level 3.
 
 ```bash
 # Markdown → блоки → публикация в конец страницы

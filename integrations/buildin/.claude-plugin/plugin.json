@@ -1,6 +1,6 @@
 {
   "name": "buildin",
-  "version": "2.1.3",
+  "version": "2.2.0",
   "description": "Buildin.ai wiki — UI API integration (login, read, write, search)",
   "author": {
     "name": "AI Hub Contributors"
