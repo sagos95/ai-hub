@@ -9,16 +9,10 @@ allowed-tools: ["Bash", "mcp"]
 
 ## Workflow
 
-Скрипты лежат внутри плагина — резолви путь через `CLAUDE_PLUGIN_ROOT` (работает из любого репозитория):
-
-```bash
-BUILDIN_DIR="${CLAUDE_PLUGIN_ROOT}/scripts"
-```
-
 ### Step 0: Проверь существующий токен
 
 ```bash
-bash "$BUILDIN_DIR/buildin-login.sh" check
+bash integrations/buildin/scripts/buildin-login.sh check
 ```
 
 Если вывод `ok Name (email)` — токен валиден. Покажи: «Токен ещё валиден. Залогинен как Name.»
@@ -35,7 +29,7 @@ document.cookie.match(/next_auth=([^;]+)/)?.[1]
 ```
 Затем вставит токен:
 ```bash
-bash "$BUILDIN_DIR/buildin-login.sh" save "<token>"
+bash integrations/buildin/scripts/buildin-login.sh save "<token>"
 ```
 
 ### Step 2: Открой Buildin в браузере
@@ -70,7 +64,7 @@ bash "$BUILDIN_DIR/buildin-login.sh" save "<token>"
 2. Если `status: 'copied'` — запусти скрипт (он читает clipboard, валидирует, сохраняет, очищает clipboard):
 
 ```bash
-bash "$BUILDIN_DIR/buildin-login.sh" clipboard
+bash integrations/buildin/scripts/buildin-login.sh clipboard
 ```
 
 ### Step 4: Обработай результат
@@ -87,7 +81,7 @@ bash "$BUILDIN_DIR/buildin-login.sh" clipboard
 # 2. В DevTools Console:
 #    document.cookie.match(/next_auth=([^;]+)/)?.[1]
 # 3. Скопируй результат и запусти:
-bash "$BUILDIN_DIR/buildin-login.sh" save "<вставь_токен>"
+bash integrations/buildin/scripts/buildin-login.sh save "<вставь_токен>"
 ```
 
 ## Security
