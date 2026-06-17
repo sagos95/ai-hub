@@ -24,14 +24,17 @@ Activate on any of:
 
 ## Read
 
-First resolve the helper once — independent of the current directory. The skill is
-activated by its `SKILL.md` from an arbitrary CWD (Claude Code skill / agent context),
-so a bare `integrations/time/scripts/...` path does not resolve; derive it from the
-repo root (works from anywhere inside the clone) with a Copilot-install fallback:
+First resolve the helper once — independent of the current directory. As a marketplace
+plugin this skill is activated from an arbitrary CWD (the plugin lives in a cache dir,
+not the user's project), so a bare `integrations/time/scripts/...` path does not resolve.
+Resolve from `$CLAUDE_PLUGIN_ROOT` (set by Claude Code / marketplace installs to this
+plugin's dir — the same variable `hub-meta/scripts/load-env.sh` relies on), with fallbacks
+to a Copilot `_direct` install and a plain git clone:
 
 ```bash
-TIME_DIR="$(git rev-parse --show-toplevel 2>/dev/null)/integrations/time"
-[ -d "$TIME_DIR" ] || TIME_DIR="$(readlink -f "$HOME/.copilot/installed-plugins/_direct/time" 2>/dev/null)"
+TIME_DIR="${CLAUDE_PLUGIN_ROOT:-}"
+[ -d "$TIME_DIR/scripts" ] || TIME_DIR="$(readlink -f "$HOME/.copilot/installed-plugins/_direct/time" 2>/dev/null)"
+[ -d "$TIME_DIR/scripts" ] || TIME_DIR="$(git rev-parse --show-toplevel 2>/dev/null)/integrations/time"
 TIME_MESSAGES="$TIME_DIR/scripts/time-messages.sh"
 ```
 
