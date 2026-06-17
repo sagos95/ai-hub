@@ -24,20 +24,31 @@ Activate on any of:
 
 ## Read
 
+First resolve the helper once — independent of the current directory. The skill is
+activated by its `SKILL.md` from an arbitrary CWD (Claude Code skill / agent context),
+so a bare `integrations/time/scripts/...` path does not resolve; derive it from the
+repo root (works from anywhere inside the clone) with a Copilot-install fallback:
+
+```bash
+TIME_DIR="$(git rev-parse --show-toplevel 2>/dev/null)/integrations/time"
+[ -d "$TIME_DIR" ] || TIME_DIR="$(readlink -f "$HOME/.copilot/installed-plugins/_direct/time" 2>/dev/null)"
+TIME_MESSAGES="$TIME_DIR/scripts/time-messages.sh"
+```
+
 The scripts accept permalinks directly — no manual id extraction.
 
 ```bash
 # Single post by permalink or raw id
-integrations/time/scripts/time-messages.sh get "<permalink_or_post_id>"
+"$TIME_MESSAGES" get "<permalink_or_post_id>"
 
 # Full thread (preferred — gives complete context)
-integrations/time/scripts/time-messages.sh thread "<permalink_or_post_id>" --resolve-users
+"$TIME_MESSAGES" thread "<permalink_or_post_id>" --resolve-users
 
 # DMs with a user (auto-enriched)
-integrations/time/scripts/time-messages.sh dm @<username> [limit]
+"$TIME_MESSAGES" dm @<username> [limit]
 
 # Search in a team
-integrations/time/scripts/time-messages.sh search <team_id> "<query>" --resolve-users
+"$TIME_MESSAGES" search <team_id> "<query>" --resolve-users
 ```
 
 `--resolve-users` inlines `{username, nickname, first_name, last_name}` next
