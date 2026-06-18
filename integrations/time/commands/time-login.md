@@ -3,16 +3,16 @@ description: "Login to Time via browser MCP (Google SSO) — securely extracts t
 allowed-tools: ["Bash", "mcp"]
 ---
 
-# Time Login — MCP-based browser login
+# Time Login
 
-Авторизация в Time через браузерный MCP-сервер. Не привязан к конкретному браузеру — работает с любым MCP, который умеет навигацию и cookies.
+Авторизация в Time. Токен извлекается Bash-скриптом и **НИКОГДА не попадает в контекст LLM**.
 
-**Приоритет MCP:**
-1. **Chrome DevTools MCP** (`chrome-devtools-mcp`) — особенно если у юзера он уже настроен.
-2. **Playwright MCP** (`@playwright/mcp`) — fallback, если будет что-то не получаться с Chrome DevTools MCP, или если Playwright уже установлен, а Chrome DevTools – нет.
-Если нет никакого из этих MCP, установить Chrome DevTools MCP.
+**Приоритет способов (пробовать сверху вниз):**
+1. **`cookie auto` — ПРИМАРНЫЙ, zero-MCP, без интеракции.** Читает MMAUTHTOKEN прямо из профиля браузера (Chrome/Brave/Edge/Arc/Firefox), где юзер уже залогинен в Time. Самый быстрый путь — **пробовать первым**.
+2. **Браузерный MCP** (Chrome DevTools MCP, затем Playwright MCP) — fallback, если `cookie` не дал токен (нет залогиненной сессии / профиль недоступен) и нужен интерактивный Google SSO.
+3. **Ручной `sso`** — последний fallback.
 
-Токен извлекается Bash-скриптом из storage-state файла и **НИКОГДА не попадает в контекст LLM**.
+⚠️ Браузерный MCP может быть недоступен (например, профиль уже занят запущенным Chrome) — это нормально; переходи к нему только если `cookie` не сработал.
 
 ## Workflow
 
@@ -26,7 +26,19 @@ integrations/time/scripts/time-login.sh check
 
 Если `error:*` или ненулевой exit code — продолжай к Step 1.
 
-### Step 1: Определи доступный MCP
+### Step 1: Cookie-извлечение (ПРИМАРНЫЙ путь, без MCP) — пробуй первым
+
+```bash
+integrations/time/scripts/time-login.sh cookie auto
+```
+
+Читает MMAUTHTOKEN из браузера, где юзер залогинен в Time (итерирует профили Chrome/Brave/Edge/Arc/Firefox), валидирует и сохраняет токен в `.env`. Без браузерного MCP и без сети.
+
+- Может всплыть системный диалог Keychain («доступ к Chrome Safe Storage») — попроси юзера нажать «Разрешить» / «Always Allow».
+- `ok @username (via <browser>/<profile>)` — готово, токен сохранён. Покажи юзеру и **заверши логин** (Step 2–5 не нужны; переходи сразу к Step 6 — постфикс).
+- Не нашёл валидного токена (нет залогиненной сессии в браузере / все профили разлогинены) — переходи к Step 2 (браузерный MCP, интерактивный SSO).
+
+### Step 2: Определи доступный MCP (fallback, если Step 1 не дал токен)
 
 Проверь, какой браузерный MCP доступен у юзера. Попробуй вызвать любой read-only MCP-тул:
 
@@ -44,7 +56,7 @@ integrations/time/scripts/time-login.sh check
 integrations/time/scripts/time-login.sh sso
 ```
 
-### Step 2: Открой Time в браузере через MCP
+### Step 3: Открой Time в браузере через MCP
 
 **Chrome DevTools MCP:**
 Используй `navigate_page` с URL `$TIME_BASE_URL`
@@ -54,7 +66,7 @@ integrations/time/scripts/time-login.sh sso
 
 Скажи юзеру: «Открылся браузер. Залогинься через Google SSO, если нужно. Скажи когда будет готово.»
 
-### Step 3: Дождись логина и извлеки токен
+### Step 4: Дождись логина и извлеки токен
 
 Когда юзер подтвердит что залогинился:
 
@@ -77,14 +89,14 @@ bash integrations/time/scripts/time-save-token-from-clipboard.sh
 bash integrations/time/scripts/time-extract-token-from-storage.sh integrations/time/.cache/storage-state.json
 ```
 
-### Step 4: Обработай результат
+### Step 5: Обработай результат
 
 - `ok @username (email)` — покажи: «Залогинен как @username. Токен сохранён в .env.»
 - `error:no_mmauthtoken` — юзер не залогинился или cookie не появилась. Предложи повторить.
 - `error:validation_failed` — токен невалидный. Предложи перелогиниться.
 - `error:no_storage_file` / `error:file_not_found` — проблема с файлом. Проверь путь.
 
-### Step 5: Настройка постфикса сообщений
+### Step 6: Настройка постфикса сообщений
 
 После успешного логина спроси пользователя:
 
