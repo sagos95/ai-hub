@@ -11,8 +11,15 @@ allowed-tools: ["Bash", "Read", "Glob", "Grep", "Write", "Edit", "Task", "AskUse
 
 ## Константы
 
-```
-BUILDIN_DIR = integrations/buildin/scripts
+Каталог скриптов резолвится так, чтобы команда работала из **любого** репозитория
+(standalone-клон, subtree-overlay, marketplace-install). Выполни строку-резолвер
+перед вызовом скриптов; если bash-блоки запускаются отдельными shell'ами и
+переменная между ними не сохраняется — повтори её в начале нужного блока.
+
+```bash
+# resolve-buildin-dir:start — первый существующий из кандидатов: плагин-кеш → overlay → standalone
+BUILDIN_SCRIPTS=$(ls -d "${CLAUDE_PLUGIN_ROOT:-/nope}/scripts" "$PWD"/integrations/*/integrations/buildin/scripts "$PWD"/integrations/buildin/scripts 2>/dev/null | head -1)
+# resolve-buildin-dir:end
 ```
 
 ## Входные параметры
@@ -26,10 +33,14 @@ BUILDIN_DIR = integrations/buildin/scripts
 ### Фаза 0: Проверь авторизацию
 
 ```bash
-bash integrations/buildin/scripts/buildin-login.sh check
+bash "$BUILDIN_SCRIPTS/buildin-login.sh" check
 ```
 
 Если `error:*` — запусти `/ai-hub:buildin-login` для логина.
+
+> ℹ️ Создавать новую страницу или дополнять существующую? Если пользователь просит
+> «добавить / дописать / обновить» уже существующую страницу — переходи к разделу
+> [«Обновление существующей страницы»](#обновление-существующей-страницы) вместо Фаз 1–4.
 
 ### Фаза 1: Подготовка
 
@@ -49,7 +60,7 @@ bash integrations/buildin/scripts/buildin-login.sh check
 ### Фаза 3: Создание страницы
 
 ```bash
-bash integrations/buildin/scripts/buildin-pages.sh create "<parent_page_id>" "<title>"
+bash "$BUILDIN_SCRIPTS/buildin-pages.sh" create "<parent_page_id>" "<title>"
 ```
 
 Запомни ID созданной страницы из вывода.
@@ -64,10 +75,13 @@ bash integrations/buildin/scripts/buildin-pages.sh create "<parent_page_id>" "<t
 расширенные блоки (таблицы, сворачиваемые секции, вложенные списки, mermaid):
 
 ```bash
-DIR=integrations/buildin/scripts
-python3 $DIR/md-to-blocks.py "<path/to/doc.md>" > /tmp/blocks.json
-bash $DIR/buildin-pages.sh append-blocks "<page_id>" "$(cat /tmp/blocks.json)"
+python3 "$BUILDIN_SCRIPTS/md-to-blocks.py" "<path/to/doc.md>" > /tmp/blocks.json
+bash "$BUILDIN_SCRIPTS/buildin-pages.sh" append-blocks "<page_id>" "$(cat /tmp/blocks.json)"
 ```
+
+Маппинг заголовков совпадает с тем, что выдаёт `read-page` (round-trip): `#`→level 1,
+`##`→level 2, `###`→level 3. То есть прочитанную через `read-page` страницу можно
+без сдвига уровней отредактировать и опубликовать обратно.
 
 Поддержка markdown:
 - `#`…`###` → заголовок (7); `<!-- collapse -->` перед заголовком → сворачиваемая секция (38)
@@ -100,16 +114,59 @@ inline-код `enhancer:{"code": true}`; ссылка `{"type": 3, "text": "clic
 
 ```bash
 # В конец страницы
-bash integrations/buildin/scripts/buildin-pages.sh append-blocks "<page_id>" '<json_array>'
+bash "$BUILDIN_SCRIPTS/buildin-pages.sh" append-blocks "<page_id>" '<json_array>'
 
-# После конкретного блока (block_id получи через get-blocks)
-bash integrations/buildin/scripts/buildin-pages.sh insert-blocks-after "<page_id>" "<after_block_id>" '<json_array>'
+# После / перед конкретным блоком (block_id — поле "uuid" из get-blocks)
+bash "$BUILDIN_SCRIPTS/buildin-pages.sh" insert-blocks-after  "<page_id>" "<block_id>" '<json_array>'
+bash "$BUILDIN_SCRIPTS/buildin-pages.sh" insert-blocks-before "<page_id>" "<block_id>" '<json_array>'
 ```
 
 ### Фаза 5: Результат
 
 1. Выведи ссылку на созданную страницу
 2. Покажи краткую сводку: заголовок, количество блоков, parent page
+
+## Обновление существующей страницы
+
+Когда нужно дописать контент в уже существующую страницу (а не создавать новую) —
+не используй `create`. Работай с блоками напрямую:
+
+1. **Найди точку вставки.** Получи верхнеуровневые блоки и их `uuid`:
+
+   ```bash
+   bash "$BUILDIN_SCRIPTS/buildin-pages.sh" get-blocks "<page_id>"
+   ```
+
+   В выводе у каждого блока есть поле `uuid` — это и есть `block_id` для вставки.
+   Заголовки имеют `type: 7` и поле `data.level` (1–3) — по ним удобно находить нужную секцию.
+
+2. **Подготовь блоки.** Собери markdown во временный файл и сконвертируй:
+
+   ```bash
+   python3 "$BUILDIN_SCRIPTS/md-to-blocks.py" /tmp/new-section.md > /tmp/blocks.json
+   ```
+
+3. **Вставь в нужное место** (а не только в конец):
+
+   ```bash
+   # В конец страницы
+   bash "$BUILDIN_SCRIPTS/buildin-pages.sh" append-blocks "<page_id>" "$(cat /tmp/blocks.json)"
+
+   # Перед разделом (например, добавить новую секцию перед «Выводами»):
+   bash "$BUILDIN_SCRIPTS/buildin-pages.sh" insert-blocks-before "<page_id>" "<heading_block_uuid>" "$(cat /tmp/blocks.json)"
+
+   # После конкретного блока:
+   bash "$BUILDIN_SCRIPTS/buildin-pages.sh" insert-blocks-after  "<page_id>" "<block_uuid>" "$(cat /tmp/blocks.json)"
+   ```
+
+   `insert-blocks-before`/`insert-blocks-after` работают с верхнеуровневыми блоками страницы.
+   Если целевой блок — самый первый, `insert-blocks-before` корректно вставит контент в начало.
+
+4. **Проверь результат** — перечитай страницу и убедись, что блоки встали в нужном порядке:
+
+   ```bash
+   bash "$BUILDIN_SCRIPTS/buildin-pages.sh" read "<page_id>"
+   ```
 
 ## Обработка ошибок
 
