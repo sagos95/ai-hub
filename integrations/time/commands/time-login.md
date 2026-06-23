@@ -16,10 +16,22 @@ allowed-tools: ["Bash", "mcp"]
 
 ## Workflow
 
+Каталог скриптов резолвится так, чтобы команда работала из **любого** репозитория
+(standalone-клон, subtree-overlay, marketplace-install). Выполни строку-резолвер
+перед вызовом скриптов; если bash-блоки запускаются отдельными shell'ами и
+переменная между ними не сохраняется — повтори её в начале нужного блока.
+
+```bash
+# resolve-time-dir:start — первый существующий из кандидатов: плагин-кеш → overlay → standalone
+TIME_SCRIPTS=$(ls -d "${CLAUDE_PLUGIN_ROOT:-/nope}/scripts" "$PWD"/integrations/*/integrations/time/scripts "$PWD"/integrations/time/scripts 2>/dev/null | head -1)
+# resolve-time-dir:end
+TIME_DIR=$(dirname "$TIME_SCRIPTS")   # каталог интеграции — для .cache / .time-signature
+```
+
 ### Step 0: Проверь существующий токен
 
 ```bash
-integrations/time/scripts/time-login.sh check
+"$TIME_SCRIPTS/time-login.sh" check
 ```
 
 Если вывод `ok @username (email)` — токен валиден, дальше делать ничего не нужно. Покажи: «Токен ещё валиден. Залогинен как @username.»
@@ -29,7 +41,7 @@ integrations/time/scripts/time-login.sh check
 ### Step 1: Cookie-извлечение (ПРИМАРНЫЙ путь, без MCP) — пробуй первым
 
 ```bash
-integrations/time/scripts/time-login.sh cookie auto
+"$TIME_SCRIPTS/time-login.sh" cookie auto
 ```
 
 Читает MMAUTHTOKEN из браузера, где юзер залогинен в Time (итерирует профили Chrome/Brave/Edge/Arc/Firefox), валидирует и сохраняет токен в `.env`. Без браузерного MCP и без сети.
@@ -53,7 +65,7 @@ integrations/time/scripts/time-login.sh cookie auto
 
 Если юзер не хочет MCP — предложи ручной fallback:
 ```bash
-integrations/time/scripts/time-login.sh sso
+"$TIME_SCRIPTS/time-login.sh" sso
 ```
 
 ### Step 3: Открой Time в браузере через MCP
@@ -78,15 +90,15 @@ integrations/time/scripts/time-login.sh sso
    - Попроси юзера: «Скопируй MMAUTHTOKEN из DevTools → Application → Cookies → $TIME_BASE_URL»
 3. Запусти Bash-скрипт для сохранения токена из clipboard:
 ```bash
-bash integrations/time/scripts/time-save-token-from-clipboard.sh
+bash "$TIME_SCRIPTS/time-save-token-from-clipboard.sh"
 ```
 
 **Playwright MCP (fallback):**
 1. Используй `browser_storage_state` чтобы сохранить cookies в файл:
-   - filename: `integrations/time/.cache/storage-state.json`
+   - filename: `"$TIME_DIR/.cache/storage-state.json"`
 2. Запусти Bash-скрипт для безопасного извлечения токена:
 ```bash
-bash integrations/time/scripts/time-extract-token-from-storage.sh integrations/time/.cache/storage-state.json
+bash "$TIME_SCRIPTS/time-extract-token-from-storage.sh" "$TIME_DIR/.cache/storage-state.json"
 ```
 
 ### Step 5: Обработай результат
@@ -104,7 +116,7 @@ bash integrations/time/scripts/time-extract-token-from-storage.sh integrations/t
 
 - Если пользователь хочет постфикс — сохрани его:
 ```bash
-echo " <постфикс>" > integrations/time/.time-signature
+echo " <постфикс>" > "$TIME_DIR/.time-signature"
 ```
 (пробел перед постфиксом — чтобы он не слипался с текстом сообщения)
 
@@ -114,7 +126,7 @@ echo " <постфикс>" > integrations/time/.time-signature
 
 Если MCP не работает или юзер предпочитает терминал:
 ```bash
-integrations/time/scripts/time-login.sh sso
+"$TIME_SCRIPTS/time-login.sh" sso
 ```
 
 ## Security
