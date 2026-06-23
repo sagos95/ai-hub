@@ -206,6 +206,13 @@ bash "$BUILDIN_SCRIPTS/buildin-pages.sh" insert-blocks-before "<page_id>" "<bloc
    `insert-blocks-before`/`insert-blocks-after` работают с верхнеуровневыми блоками страницы.
    Если целевой блок — самый первый, `insert-blocks-before` корректно вставит контент в начало.
 
+   **Удаление блока** (например, чтобы заменить блок — удали старый, вставь новый):
+
+   ```bash
+   # Первым аргументом block_id (из get-blocks), НЕ page_id — в отличие от insert/append.
+   bash "$BUILDIN_SCRIPTS/buildin-pages.sh" delete-block "<block_uuid>"
+   ```
+
 4. **Проверь результат** — перечитай страницу и убедись, что блоки встали в нужном порядке:
 
    ```bash

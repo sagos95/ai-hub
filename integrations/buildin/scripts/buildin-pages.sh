@@ -503,15 +503,14 @@ print(json.dumps(blocks))
 
     delete-block)
         BLOCK_ID=$(parse_id "$1")
-        PARENT_ID=$(parse_id "${2:-}")
-        [[ -z "$BLOCK_ID" ]] && { echo "Usage: delete-block <block_id> [parent_id]" >&2; exit 1; }
+        [[ -z "$BLOCK_ID" ]] && { echo "Usage: delete-block <block_id>" >&2; exit 1; }
 
-        # Auto-detect parent if not provided
-        if [[ -z "$PARENT_ID" ]]; then
-            BLOCK_INFO=$(buildin GET "/api/blocks/$BLOCK_ID")
-            PARENT_ID=$(echo "$BLOCK_INFO" | python3 -c "import sys,json; print(json.load(sys.stdin).get('data',{}).get('parentId',''))")
-        fi
-        [[ -z "$PARENT_ID" ]] && { echo "Error: cannot determine parentId for $BLOCK_ID" >&2; exit 1; }
+        # Resolve the block's real parent and use it as source of truth. A wrong block_id
+        # (e.g. a page_id) otherwise returns a misleading code 200; for a page that means
+        # status=-1 on the page block — silently deleting the whole page.
+        DETECTED_PARENT=$(buildin GET "/api/blocks/$BLOCK_ID" | python3 -c "import sys,json; print(json.load(sys.stdin).get('data',{}).get('parentId',''))")
+        [[ -z "$DETECTED_PARENT" ]] && { echo "Error: $BLOCK_ID not found or is a page (no parent block); refusing to delete" >&2; exit 1; }
+        PARENT_ID="$DETECTED_PARENT"
 
         SPACE_ID=$(get_space_id "$BLOCK_ID")
         NOW=$(python3 -c "import time; print(int(time.time()*1000))")
