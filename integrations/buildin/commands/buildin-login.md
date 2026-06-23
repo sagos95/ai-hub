@@ -30,6 +30,16 @@ bash "$BUILDIN_SCRIPTS/buildin-login.sh" check
 
 Если `error:*` — продолжай к Step 1.
 
+### Step 0.5: Попробуй cookie из браузера (быстрый путь)
+
+Перед использованием MCP попробуй извлечь токен из cookie-store Chrome напрямую — это быстрее и не требует открытия браузера:
+
+```bash
+bash integrations/buildin/scripts/buildin-login.sh cookie
+```
+
+Если вывод `ok Name (via chrome/...)` — готово, переходи к использованию. Если ошибка — продолжай к Step 1.
+
 ### Step 1: Определи доступный MCP
 
 Попробуй `list_pages` (Chrome DevTools MCP). Если отвечает — используй его.
