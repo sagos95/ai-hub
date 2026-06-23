@@ -2,7 +2,12 @@
 """Построитель операций UI API для дерева блоков Buildin (с вложенностью).
 
 Читает JSON-массив блоков и печатает JSON-массив операций транзакции.
-Каждый блок: {"type": int, "data": {...}, "children": [<block>, ...]?}
+Каждый блок: {"type": int, "data": {...}, "children": [<block>, ...]?,
+              "textColor": str?, "backgroundColor": str?}
+
+textColor/backgroundColor — поблочные поля цвета (как в Notion: grey, red,
+green, yellow, blue, purple, orange, pink, brown, teal). Их читает UI Buildin;
+без проброса цветные callout-ы/колонки задать нельзя.
 
 Вложенные блоки (строки таблицы, дети toggle, подпункты списков) создаются с
 parentId, указывающим на контейнер, и привязываются в его subNodes. Это и даёт
@@ -54,8 +59,8 @@ def emit(block, parent_id, after=None, before=None):
             'spaceId': space_id,
             'parentId': parent_id,
             'type': block.get('type', 1),
-            'textColor': '',
-            'backgroundColor': '',
+            'textColor': block.get('textColor', ''),
+            'backgroundColor': block.get('backgroundColor', ''),
             'status': 1,
             'permissions': [],
             'createdAt': now,

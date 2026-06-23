@@ -98,17 +98,61 @@ Block types (числовые):
 - `9` — divider · `12` — quote · `13` — callout (`icon`) · `23` — equation
 - `25` — code (`format.language`; mermaid + `format.codePreviewFormat:"preview"`)
 - `38` — сворачиваемый заголовок-секция (`level` 1–4) · `27` — таблица + строки `28`
+- `10` — колоночный контейнер · `11` — колонка (`data.columnRatio`: число, доля ширины)
 
 Вложенные блоки задаются полем `children` — `append-blocks` создаёт их с правильным
-`parentId`/`subNodes` (toggle с детьми, строки таблицы, подпункты списков):
+`parentId`/`subNodes` (toggle с детьми, строки таблицы, подпункты списков, колонки):
 
 ```json
 {"type": 38, "data": {"level": 1, "segments": [{"type": 0, "text": "Секция", "enhancer": {}}]},
  "children": [{"type": 1, "data": {"segments": [{"type": 0, "text": "внутри", "enhancer": {}}]}}]}
 ```
 
+#### Цвет блока (`textColor` / `backgroundColor`)
+
+Любой блок принимает поблочный цвет (палитра как в Notion): `grey`, `red`, `green`,
+`yellow`, `blue`, `purple`, `orange`, `pink`, `brown`, `teal`. Чаще всего нужен
+`backgroundColor` на callout-е (`13`). Пустая строка / отсутствие поля → без заливки.
+
+```json
+{"type": 13, "backgroundColor": "red",
+ "data": {"icon": {"type": "emoji", "value": "🚫"},
+          "segments": [{"type": 0, "text": "Чего делать нельзя", "enhancer": {}}]}}
+```
+
+#### Колонки (`10` + `11`)
+
+Колонки бок о бок: контейнер `10` с детьми-колонками `11`, в каждой — свои блоки.
+`columnRatio` задаёт пропорцию ширины (равные колонки → одинаковое число у всех):
+
+```json
+{"type": 10, "children": [
+  {"type": 11, "data": {"columnRatio": 1}, "children": [
+    {"type": 13, "backgroundColor": "green", "data": {"segments": [{"type": 0, "text": "Делаем", "enhancer": {}}]}}]},
+  {"type": 11, "data": {"columnRatio": 1}, "children": [
+    {"type": 13, "backgroundColor": "red", "data": {"segments": [{"type": 0, "text": "Не делаем", "enhancer": {}}]}}]}
+]}
+```
+
 Segment-формат: `{"type": 0, "text": "Hello", "enhancer": {"bold": true}}`;
 inline-код `enhancer:{"code": true}`; ссылка `{"type": 3, "text": "click", "url": "https://…", "enhancer": {}}`.
+
+#### Типы блоков, которые встречаются, но НЕ собираются вручную
+
+Эти блоки существуют в Buildin, но создаются отдельными UI-флоу и ссылаются на
+другие объекты — через `append-blocks` их задавать не нужно (их `data` тяжёлая и
+контекстно-зависимая, ручная сборка даст битый блок):
+
+- `18` / `19` — инлайн-база данных (table/board view): `data.schema` + `collectionPageProperties`
+- `16` / `29` / `32` — ссылка/упоминание страницы (`data.ref.uuid` указывает на существующий объект)
+- `15` — страница-папка с описанием (вариант страницы, а не блок контента)
+- `36` — mind-map / канвас (`data.format.mindMappingFormat`, геометрия)
+- `20` — embed (например, видео; вариант закладки)
+- `2` / `31` — пустые структурные узлы (`data: {}`)
+- `14` — image: формально контент, но требует загруженный файл (`data.ossName`), без аплоада не собрать
+
+> Перечень собран сканированием реальных страниц пространства; задавать через publish
+> следует только контентные блоки из списка выше.
 
 Отправка блоков:
 
