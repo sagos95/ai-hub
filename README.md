@@ -171,6 +171,8 @@ integrations/
 
 - **[Code Review](integrations/code-review/)** `/ai-hub:code-review` — автономный code review через fail-fast pipeline (build → security → performance → architecture → correctness).
 
+- **[DAP](integrations/dap/)** `/ai-hub:dap-setup` — бутстрап скиллов Dodo AI-платформы. Ставит `dap-doctor` и `dap-shipmaster` в `~/.claude/skills/` и приводит окружение в порядок по Tier-1 диагностике доктора. `/ai-hub:setup` предлагает установку опциональным шагом.
+
 ---
 
 ## Использование как team overlay

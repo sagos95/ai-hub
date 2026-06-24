@@ -1,0 +1,6 @@
+{
+  "name": "dap",
+  "version": "0.1.0",
+  "description": "Dodo AI-Platform (DAP) bootstrap — устанавливает скиллы платформы dap-doctor + dap-shipmaster и приводит окружение в порядок по Tier-1 диагностике доктора",
+  "author": { "name": "AI Hub Contributors" }
+}

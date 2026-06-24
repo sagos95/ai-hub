@@ -108,7 +108,7 @@
     {
       "name": "hub-meta",
       "description": "AI Hub meta-tools — setup wizard, create new commands, run session retrospectives, update subtree from upstream",
-      "version": "1.2.1",
+      "version": "1.2.2",
       "author": {
         "name": "AI Hub Contributors"
       },
@@ -137,6 +137,17 @@
       "source": "./integrations/testops",
       "category": "productivity",
       "homepage": "https://github.com/sagos95/ai-hub/tree/main/integrations/testops"
+    },
+    {
+      "name": "dap",
+      "description": "Dodo AI-Platform bootstrap — installs platform skills dap-doctor + dap-shipmaster into ~/.claude/skills and brings the environment up to spec via the doctor's Tier-1 diagnostics",
+      "version": "0.1.0",
+      "author": {
+        "name": "AI Hub Contributors"
+      },
+      "source": "./integrations/dap",
+      "category": "development",
+      "homepage": "https://github.com/sagos95/ai-hub/tree/main/integrations/dap"
     }
   ]
 }

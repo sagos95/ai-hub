@@ -129,7 +129,7 @@ EOF
 # Each step has: check_<N>() returns 0 if done, 1 if TODO.
 #                say_<N>() prints instructions (called only when check fails).
 
-TOTAL=8
+TOTAL=9
 
 # Step 0 — миграция .env.local (если есть старый файл)
 check_0() { [[ -f "$ROOT_DIR/.env.local" && ! -f "$ROOT_DIR/.env" ]] || return 0; return 1; }
@@ -411,12 +411,43 @@ say_7() {
 EOF
 }
 
+# Step 8 — предложить установку скиллов Dodo AI-платформы (DAP). Опциональный.
+# Это НЕ источник данных AI Hub, а бутстрап внешних скиллов платформы
+# (dap-doctor + dap-shipmaster) в ~/.claude/skills/. Просто предложение — если
+# юзер не из Dodo / не пользуется платформой, он скажет «пропустить».
+check_8() { is_marked dap_done || is_skipped dap; }
+say_8() {
+    cat <<EOF
+Опциональное предложение — скиллы Dodo AI-платформы (DAP). К самому AI Hub отношения
+не имеет: это бутстрап внешних платформенных скиллов (dap-doctor + dap-shipmaster) в
+~/.claude/skills/. Нужно только тем, кто работает с DAP и имеет доступ к GitHub-орг
+dodo-ai-platform.
+
+Спроси юзера (коротко, по-человечески):
+
+  > «Ещё опция: поставить скиллы Dodo AI-платформы (dap-doctor + dap-shipmaster)?
+  >  Нужно, только если ты работаешь с DAP и тебе выдан доступ к орг dodo-ai-platform.
+  >  Если нет — спокойно пропускай, на остальное не влияет.»
+
+ЕСЛИ ЮЗЕР СОГЛАСЕН:
+  Пройди флоу из integrations/dap/commands/dap-setup.md (команда /ai-hub:dap-setup) —
+  git → bootstrap → check-env.sh с фиксами по одному и с согласия. По завершении:
+    $0 mark dap_done
+    $0 next
+
+ЕСЛИ ЮЗЕР ОТКАЗАЛСЯ / НЕ ИЗ DODO:
+  $0 skip dap
+  $0 next
+EOF
+}
+
 # ---------- commands ----------
 # Step execution order. MCP+Holst are moved to the end because they are
 # OPTIONAL (MCP is only needed for Holst). All the zero-MCP logins (Buildin,
 # Time, Kaiten) complete first so the setup is usable even if MCP install
-# fails or the user doesn't want Holst.
-STEP_ORDER=(0 2 3 4 6 7 1 5)
+# fails or the user doesn't want Holst. DAP (step 8) is the last optional
+# offer — external platform skills, unrelated to AI Hub data sources.
+STEP_ORDER=(0 2 3 4 6 7 1 5 8)
 STEP_NAMES=(
     "migrate_env_local"
     "buildin_login"
@@ -426,6 +457,7 @@ STEP_NAMES=(
     "team_config"
     "install_mcp"
     "holst_login"
+    "offer_dap"
 )
 STEP_NOTES=(
     ""
@@ -436,6 +468,7 @@ STEP_NOTES=(
     ""
     "(optional — only for Holst)"
     "(optional — requires MCP)"
+    "(optional — Dodo AI-Platform skills)"
 )
 
 cmd_next() {
@@ -513,7 +546,7 @@ Usage:
   $0 reset                — clear state file (re-run from scratch)
 
 Steps: mcp_ready, buildin_login, fetch_team_config, time_login, holst_login/holst,
-       kaiten_token, team_config
+       kaiten_token, team_config, offer_dap
 
 Agent contract: call \`$0 next\` in a loop until stdout's first line is "STATUS: DONE".
 EOF

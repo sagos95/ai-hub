@@ -39,6 +39,7 @@ bash integrations/hub-meta/scripts/setup.sh next
 │   ├── holst/                    # Инструменты для графических досок
 │   ├── kusto/                    # Azure Data Explorer (логи)     → README.md
 │   ├── hub-meta/                 # create-command, skill-retro
+│   ├── dap/                      # Dodo AI-Platform bootstrap (dap-doctor)
 │   └── code-review/              # Code review workflow
 └── .env                          # Токены (не в git)
 ```
@@ -57,6 +58,7 @@ Claude Code CLI ищет slash-команды в `.claude/commands/`. Коман
   buildin-login.md               → ../../../integrations/buildin/commands/buildin-login.md
   buildin-bot-read.md            → ../../../integrations/buildin-bot-api/commands/buildin-bot-read.md
   setup.md                       → ../../../integrations/hub-meta/commands/setup.md
+  dap-setup.md                   → ../../../integrations/dap/commands/dap-setup.md
   create-command.md              → ../../../integrations/hub-meta/commands/create-command.md
   spike.md                       → ../../../integrations/spike/commands/spike.md
   ai-test.md                     → ../../../integrations/test-factory/commands/ai-test.md
