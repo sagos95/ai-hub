@@ -349,8 +349,8 @@ def render(node_ids, indent=0):
             else:
                 print()
         elif t == 3:
-            checked = '☑' if d.get('checked') else '☐'
-            print(f'{pfx}{checked} {text}')
+            checked = '[x]' if d.get('checked') else '[ ]'
+            print(f'{pfx}- {checked} {text}')
         elif t == 5:
             print(f'{pfx}1. {text}')
         elif t == 4:
