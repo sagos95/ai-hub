@@ -124,8 +124,12 @@ case "$METHOD_UPPER" in
 esac
 
 # Build curl command
+# --connect-timeout / --max-time: без них зависший запрос висит бесконечно
+# (наблюдалось при bulk-прогонах). Ограничиваем время соединения и всего запроса.
 CURL_ARGS=(
     -s
+    --connect-timeout 10
+    --max-time 30
     -X "$METHOD_UPPER"
     -H "Authorization: Bearer $KAITEN_TOKEN"
     -H "Content-Type: application/json"
@@ -137,6 +141,13 @@ fi
 
 # Execute request
 response=$(curl "${CURL_ARGS[@]}" -w "\n%{http_code}" "${KAITEN_API}${ENDPOINT}")
+curl_rc=$?
+
+# Таймаут/сетевая ошибка curl (напр. 28) → чёткая ошибка, а не пустой ответ с exit 0
+if [[ $curl_rc -ne 0 ]]; then
+    echo "Error: curl не смог выполнить ${METHOD_UPPER} ${ENDPOINT} (exit $curl_rc — таймаут/сеть)" >&2
+    exit 1
+fi
 
 # Extract HTTP code (last line)
 http_code=$(echo "$response" | tail -n1)
