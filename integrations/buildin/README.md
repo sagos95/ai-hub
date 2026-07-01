@@ -176,7 +176,7 @@ bash $DIR/buildin-pages.sh append-blocks <id|url> "$(cat /tmp/blocks.json)"
 - **Поле `parent`** — `GET /v1/pages/{id}` возвращает `parent` объект: `{"type": "page_id", "page_id": "..."}` для дочерних страниц или `{"type": "space_id", "space_id": "..."}` для корневых. API пространств (`/v1/spaces`) недоступен.
 - **Два формата блоков** — новый API хранит контент в `data`, legacy — в именованных полях (`heading_1`, `paragraph`). Скрипты поддерживают оба.
 - **Нет `plain_text`** — заголовки берутся из `text.content` внутри `rich_text` items.
-- **Поиск** — официальный API (`/v1/search`) сломан (500). UI API `/api/search` работает, но качество низкое — результаты часто нерелевантные. Рекомендуется shadow-индекс.
+- **Поиск — `api/search` КРАЙНИЙ способ.** Официальный API (`/v1/search`) сломан (500). UI API `/api/search` работает, но качество низкое (нерелевантные результаты) и поиск scoped на конкретный space (не по всем — легко искать не в том пространстве). **Приоритет:** shadow-индекс → обход дерева от базовых страниц (`buildin-nav.sh children <page_id>`, попутно наполняет shadow-индекс) → и только потом `api/search` с явным space_id.
 - **Доступ** — UI API (JWT из Google SSO) видит все страницы пользователя. Официальный API-токен видит только расшаренные боту страницы (иначе 403).
 - **SDK** — [GitHub: next-space/buildin-api-sdk](https://github.com/next-space/buildin-api-sdk) (Java + TypeScript, OpenAPI spec)
 

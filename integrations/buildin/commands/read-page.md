@@ -54,14 +54,18 @@ bash "$BUILDIN_SCRIPTS/buildin-login.sh" check
 ### Фаза 1: Определить page_id
 
 1. Если аргумент содержит UUID (8-4-4-4-12 hex) — это page_id, извлеки его
-2. Если аргумент — текст без UUID — это поисковый запрос:
+2. Если аргумент — текст без UUID — это поисковый запрос. **UI Search API — КРАЙНИЙ способ** (качество низкое, результаты часто нерелевантны, к тому же поиск scoped на конкретный space). Порядок:
    - **Сначала** ищи в shadow-индексе (мгновенно):
      ```bash
      bash "$BUILDIN_SCRIPTS/buildin-shadow.sh" search "<query>"
      ```
-   - Если не найдено — используй UI Search API (качество поиска низкое, результаты часто нерелевантные):
+   - Если известна базовая страница по теме — **обходи дерево** от неё вглубь (попутно наполняет shadow-индекс для будущих поисков):
      ```bash
-     bash "$BUILDIN_SCRIPTS/buildin-nav.sh" search "<query>"
+     bash "$BUILDIN_SCRIPTS/buildin-nav.sh" children "<base_page_id>"
+     ```
+   - **Только если выше ничего не дало** — UI Search API (укажи нужный space_id, иначе ищет не там):
+     ```bash
+     bash "$BUILDIN_SCRIPTS/buildin-nav.sh" search "<query>" "<space_id>"
      ```
    Используй найденный page_id. Если не найдено — сообщи пользователю.
 
