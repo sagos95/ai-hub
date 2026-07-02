@@ -25,7 +25,13 @@ If token is missing, ask the user to:
 The user provides `$ARGUMENTS` — it can be:
 - **URL** like `https://buildin.ai/.../page-uuid` → extract UUID
 - **UUID** like `2a904afe-42e9-4ebd-a94e-f6fe0cbacf58` → use directly
-- **Search query** like `"RFC template"` → search first, then read the best match
+- **Search query** like `"RFC template"` → ⚠️ read the warning below first
+
+> **⚠️ Buildin search is broken — do NOT start with search.**
+> The official Bot API `POST /v1/search` returns **HTTP 500** (server-side, not fixable here); `buildin-bot-pages.sh search` is guarded and will fail on purpose. The UI-API search also exists but its quality is low.
+> If you were given only a title/topic (no URL or UUID), get a `page_id` this way — do **not** loop on search:
+> 1. **Ask the user for the page URL or page_id.** This is the fastest reliable path.
+> 2. Or, if a base page in that area is known, navigate its tree via the UI-API command `/ai-hub:buildin-read` (it has a working shadow-index + `buildin-nav children`).
 
 ## Execution
 
@@ -35,13 +41,9 @@ The user provides `$ARGUMENTS` — it can be:
 $INTEGRATION_DIR/../buildin-bot-api/scripts/buildin-bot-pages.sh read "$PAGE_ID"
 ```
 
-### If search query:
+### If only a title / search query (no URL/UUID):
 
-```bash
-$INTEGRATION_DIR/../buildin-bot-api/scripts/buildin-bot-pages.sh search "$ARGUMENTS" 5
-```
-
-Show the user the results and ask which page to read. Then:
+Bot API search is broken (HTTP 500) — **do not call `buildin-bot-pages.sh search`.** Ask the user for the page URL/page_id, or switch to the UI-API command `/ai-hub:buildin-read` (shadow-index + tree navigation). Once you have a `page_id`:
 
 ```bash
 $INTEGRATION_DIR/../buildin-bot-api/scripts/buildin-bot-pages.sh read "$SELECTED_PAGE_ID"
