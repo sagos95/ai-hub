@@ -27,8 +27,8 @@ The user provides `$ARGUMENTS` — it can be:
 - **UUID** like `2a904afe-42e9-4ebd-a94e-f6fe0cbacf58` → use directly
 - **Search query** like `"RFC template"` → ⚠️ read the warning below first
 
-> **⚠️ Buildin search is broken — do NOT start with search.**
-> The official Bot API `POST /v1/search` returns **HTTP 500** (server-side, not fixable here); `buildin-bot-pages.sh search` is guarded and will fail on purpose. The UI-API search also exists but its quality is low.
+> **⚠️ The Bot API search endpoint `POST /v1/search` is broken — do NOT search via this command.**
+> That specific endpoint returns **HTTP 500** server-side (not fixable here), so `buildin-bot-pages.sh search` is guarded and fails on purpose. This is *not* "Buildin search" in general — the UI-API integration uses different mechanisms that work: a local shadow-index (`buildin-shadow.sh search`) and UI search (`POST /api/search/...`, low quality). Reach those via the `/ai-hub:buildin-read` command.
 > If you were given only a title/topic (no URL or UUID), get a `page_id` this way — do **not** loop on search:
 > 1. **Ask the user for the page URL or page_id.** This is the fastest reliable path.
 > 2. Or, if a base page in that area is known, navigate its tree via the UI-API command `/ai-hub:buildin-read` (it has a working shadow-index + `buildin-nav children`).
