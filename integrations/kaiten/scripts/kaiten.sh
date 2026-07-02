@@ -139,17 +139,19 @@ if [[ -n "$BODY" ]]; then
     CURL_ARGS+=(-d "$BODY")
 fi
 
-# Клиентский троттлинг (opt-in через env KAITEN_RATE): пауза ПЕРЕД запросом для
-# bulk-вызывателей (перебор сотен карточек). Дефолт — без паузы: интерактивные
-# вызыватели пейсятся сами. min=0.2с, max=0.6с (≈100/мин — лимит Kaiten).
+# Клиентский троттлинг (opt-in через env KAITEN_RATE): пауза ПЕРЕД запросом. Дефолт — без
+# паузы (интерактивные вызыватели пейсятся сами). max=0.6с ≈100 req/мин — безопасно для
+# bulk (соответствует лимиту Kaiten); min=0.2с ≈300 req/мин — ТОЛЬКО для коротких серий
+# (несколько вызовов), не для sustained-нагрузки.
 case "${KAITEN_RATE:-}" in
     min) sleep 0.2 ;;
     max) sleep 0.6 ;;
 esac
 
-# Execute request
-response=$(curl "${CURL_ARGS[@]}" -w "\n%{http_code}" "${KAITEN_API}${ENDPOINT}")
-curl_rc=$?
+# Execute request. `|| curl_rc=$?`: под `set -e` присваивание с упавшим $(...) прервало бы
+# скрипт на этой строке (тогда curl_rc=$? — мёртвый код) → ловим код, не роняя errexit.
+curl_rc=0
+response=$(curl "${CURL_ARGS[@]}" -w "\n%{http_code}" "${KAITEN_API}${ENDPOINT}") || curl_rc=$?
 
 # Таймаут/сетевая ошибка curl (напр. 28) → чёткая ошибка, а не пустой ответ с exit 0
 if [[ $curl_rc -ne 0 ]]; then
