@@ -170,7 +170,7 @@ GET /cards?board_id=123&offset=100&limit=100
 POST /cards/{card_id}/members
 {
   "user_id": 123,
-  "type": 1  // 1 - responsible, 2 - member
+  "type": 1  // 1 - member (участник), 2 - responsible (ответственный)
 }
 ```
 
