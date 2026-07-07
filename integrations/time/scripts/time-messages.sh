@@ -74,20 +74,35 @@ case "$action" in
         ;;
 
     send)
-        # Send message to channel
-        # Usage: ./time-messages.sh send <channel_id> <message> [root_id]
+        # Send message to channel, optionally with file attachments
+        # Usage: ./time-messages.sh send <channel_id> <message> [root_id] [--file <path>]...
         CHANNEL_ID="${2:?Channel ID required}"
         MESSAGE="${3:?Message required}"
-        ROOT_ID="${4}"
+        shift 3
+        ROOT_ID=""
+        FILE_PATHS=()
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                --file) FILE_PATHS+=("${2:?--file requires a path}"); shift 2 ;;
+                *) ROOT_ID="$1"; shift ;;
+            esac
+        done
         MESSAGE="${MESSAGE}${TIME_SIGNATURE}"
 
-        ESCAPED_MESSAGE=$(echo "$MESSAGE" | python3 -c 'import sys,json; print(json.dumps(sys.stdin.read().strip())[1:-1])')
+        FILE_IDS=()
+        for f in "${FILE_PATHS[@]}"; do
+            UPLOAD_RESP=$("$TIME" "${AS_ARGS[@]}" UPLOAD "/api/v4/files?channel_id=${CHANNEL_ID}" "$f")
+            FILE_IDS+=("$(echo "$UPLOAD_RESP" | python3 -c 'import sys,json; print(json.load(sys.stdin)["file_infos"][0]["id"])')")
+        done
 
-        if [[ -n "$ROOT_ID" ]]; then
-            BODY="{\"channel_id\":\"$CHANNEL_ID\",\"message\":\"$ESCAPED_MESSAGE\",\"root_id\":\"$ROOT_ID\"}"
-        else
-            BODY="{\"channel_id\":\"$CHANNEL_ID\",\"message\":\"$ESCAPED_MESSAGE\"}"
-        fi
+        BODY=$(CHANNEL_ID="$CHANNEL_ID" ROOT_ID="$ROOT_ID" FILE_IDS="${FILE_IDS[*]}" python3 -c '
+import sys, os, json
+body = {"channel_id": os.environ["CHANNEL_ID"], "message": sys.stdin.read().strip()}
+if os.environ["ROOT_ID"]:
+    body["root_id"] = os.environ["ROOT_ID"]
+if os.environ["FILE_IDS"]:
+    body["file_ids"] = os.environ["FILE_IDS"].split()
+print(json.dumps(body))' <<< "$MESSAGE")
 
         "$TIME" "${AS_ARGS[@]}" POST "/api/v4/posts" "$BODY"
         ;;

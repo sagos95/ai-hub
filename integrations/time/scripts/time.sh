@@ -83,12 +83,17 @@ fi
 CURL_ARGS=(
     -s
     -w "\n%{http_code}"
-    -X "$METHOD"
     -H "Authorization: Bearer $AUTH_TOKEN"
-    -H "Content-Type: application/json"
 )
 
-[[ -n "$BODY" ]] && CURL_ARGS+=(-d "$BODY")
+# UPLOAD <endpoint> <filepath> — multipart file upload (e.g. /api/v4/files?channel_id=...)
+if [[ "$METHOD" == "UPLOAD" ]]; then
+    [[ -f "$BODY" ]] || { echo "Error: file not found: $BODY" >&2; exit 1; }
+    CURL_ARGS+=(-X POST -F "files=@$BODY")
+else
+    CURL_ARGS+=(-X "$METHOD" -H "Content-Type: application/json")
+    [[ -n "$BODY" ]] && CURL_ARGS+=(-d "$BODY")
+fi
 
 RESPONSE=$(curl "${CURL_ARGS[@]}" "${TIME_BASE_URL}${ENDPOINT}")
 
