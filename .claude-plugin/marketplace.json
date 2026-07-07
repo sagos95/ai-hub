@@ -137,6 +137,17 @@
       "source": "./integrations/testops",
       "category": "productivity",
       "homepage": "https://github.com/sagos95/ai-hub/tree/main/integrations/testops"
+    },
+    {
+      "name": "spike-from-meeting",
+      "description": "Turn a meeting recording (video + transcript) into a markdown artifact with context-verified screenshots at timecodes — recap, spike, plan, instruction or dual-artifact. Supports Kontur.Talk API for auto-fetching transcript and video.",
+      "version": "0.3.1",
+      "author": {
+        "name": "AI Hub Contributors"
+      },
+      "source": "./integrations/spike-from-meeting",
+      "category": "automation",
+      "homepage": "https://github.com/sagos95/ai-hub/tree/main/integrations/spike-from-meeting"
     }
   ]
 }
