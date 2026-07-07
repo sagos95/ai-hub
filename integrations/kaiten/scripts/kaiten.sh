@@ -124,8 +124,12 @@ case "$METHOD_UPPER" in
 esac
 
 # Build curl command
+# --connect-timeout / --max-time: без них зависший запрос висит бесконечно
+# (наблюдалось при bulk-прогонах). Ограничиваем время соединения и всего запроса.
 CURL_ARGS=(
     -s
+    --connect-timeout 10
+    --max-time 30
     -X "$METHOD_UPPER"
     -H "Authorization: Bearer $KAITEN_TOKEN"
     -H "Content-Type: application/json"
@@ -135,8 +139,25 @@ if [[ -n "$BODY" ]]; then
     CURL_ARGS+=(-d "$BODY")
 fi
 
-# Execute request
-response=$(curl "${CURL_ARGS[@]}" -w "\n%{http_code}" "${KAITEN_API}${ENDPOINT}")
+# Клиентский троттлинг (opt-in через env KAITEN_RATE): пауза ПЕРЕД запросом. Дефолт — без
+# паузы (интерактивные вызыватели пейсятся сами). max=0.6с ≈100 req/мин — безопасно для
+# bulk (соответствует лимиту Kaiten); min=0.2с ≈300 req/мин — ТОЛЬКО для коротких серий
+# (несколько вызовов), не для sustained-нагрузки.
+case "${KAITEN_RATE:-}" in
+    min) sleep 0.2 ;;
+    max) sleep 0.6 ;;
+esac
+
+# Execute request. `|| curl_rc=$?`: под `set -e` присваивание с упавшим $(...) прервало бы
+# скрипт на этой строке (тогда curl_rc=$? — мёртвый код) → ловим код, не роняя errexit.
+curl_rc=0
+response=$(curl "${CURL_ARGS[@]}" -w "\n%{http_code}" "${KAITEN_API}${ENDPOINT}") || curl_rc=$?
+
+# Таймаут/сетевая ошибка curl (напр. 28) → чёткая ошибка, а не пустой ответ с exit 0
+if [[ $curl_rc -ne 0 ]]; then
+    echo "Error: curl не смог выполнить ${METHOD_UPPER} ${ENDPOINT} (exit $curl_rc — таймаут/сеть)" >&2
+    exit 1
+fi
 
 # Extract HTTP code (last line)
 http_code=$(echo "$response" | tail -n1)
