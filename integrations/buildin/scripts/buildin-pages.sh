@@ -341,6 +341,17 @@ def render(node_ids, indent=0):
             # Sub-page
             print(f'{pfx}> [{b.get(\"title\", text)}](https://buildin.ai/{b.get(\"spaceId\", \"\")}/{nid})')
             print()
+        elif t == 16:
+            # Reference/link to another page. Previously unhandled → the link was
+            # silently dropped from markdown (a real referenced page looked absent).
+            # The /api/docs response includes the referenced block, so resolve its
+            # title/space; fall back to the ref uuid when it is not embedded.
+            ref = (d.get('ref') or {}).get('uuid', '')
+            rb = blocks.get(ref, {})
+            rtitle = rb.get('title') or text or '(referenced page)'
+            rspace = rb.get('spaceId', '') or b.get('spaceId', '')
+            print(f'{pfx}> [{rtitle}](https://buildin.ai/{rspace}/{ref})')
+            print()
         elif t == 1:
             # Empty paragraph / text without segments
             if text:
