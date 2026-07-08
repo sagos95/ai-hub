@@ -229,7 +229,7 @@ Spike-файл: <полный путь к spike-файлу>
 
 7. **Добавь ссылку на артефакт в Kaiten-карточку** (комментарием или в описание):
    ```
-   Результат спайка: https://github.com/sagos95/ai-hub/blob/main/Spikes/<spike-file>.md
+   Результат спайка: https://github.com/dodobrands/ai-hub/blob/main/Spikes/<spike-file>.md
    Краткий итог: <1-2 предложения из Executive Summary>
    ```
    **НЕ загружай .md файл в карточку** — source of truth только GitHub.
