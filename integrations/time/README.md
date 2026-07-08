@@ -136,6 +136,9 @@ TIME_AS=me ./time-channels.sh my-channels <team_id>
 # Отправить сообщение
 ./time-messages.sh --as me send <channel_id> "Текст сообщения"
 
+# Отправить с вложением (--file можно повторять)
+./time-messages.sh --as me send <channel_id> "Текст" --file screenshot.png
+
 # Ответить в тред
 ./time-messages.sh --as bot send <channel_id> "Ответ" <root_post_id>
 
