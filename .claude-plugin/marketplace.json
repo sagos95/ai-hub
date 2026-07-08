@@ -9,7 +9,7 @@
     {
       "name": "spike",
       "description": "Spike research workflow — 3 specialized agents (explorer, researcher, architect) produce a structured report from a Kaiten card",
-      "version": "2.0.1",
+      "version": "2.0.2",
       "author": {
         "name": "AI Hub Contributors"
       },
