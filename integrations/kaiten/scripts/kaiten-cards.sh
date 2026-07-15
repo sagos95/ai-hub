@@ -37,7 +37,13 @@ Commands:
   
   tag <card_id> <tag_id>             - Добавить тег
   tags <card_id>                     - Получить теги
-  
+
+  blockers <card_id>                 - Получить блокировки карточки
+  block <card_id> <reason>           - Заблокировать (текстовая причина)
+  block <card_id> --card <blocker_card_id> [reason]
+                                       - Заблокировать другой карточкой (зависимость)
+  unblock <card_id> <blocker_id>     - Снять блокировку (blocker_id из blockers)
+
   checklist <card_id> <name>         - Создать чек-лист
   checklists <card_id>               - Получить чек-листы
   check-item <card_id> <checklist_id> <text>  - Добавить пункт чек-листа
@@ -55,6 +61,10 @@ Examples:
   ./kaiten-cards.sh create 123 456 "Новая задача" "Описание" "5 SP" 42
   ./kaiten-cards.sh move 789 101
   ./kaiten-cards.sh comment 789 "Готово!"
+  ./kaiten-cards.sh blockers 789
+  ./kaiten-cards.sh block 789 "Ждём макеты"
+  ./kaiten-cards.sh block 789 --card 456
+  ./kaiten-cards.sh unblock 789 12345
 EOF
 }
 
@@ -175,6 +185,29 @@ case "${1:-help}" in
         ;;
     tags)
         kaiten GET "/cards/$2/tags"
+        ;;
+    blockers)
+        [[ -z "$2" ]] && { echo "Usage: $0 blockers <card_id>" >&2; exit 1; }
+        kaiten GET "/cards/$2/blockers"
+        ;;
+    block)
+        # Два вида блокеров: текстовая причина или зависимость от другой карточки.
+        #   block <card_id> <reason>
+        #   block <card_id> --card <blocker_card_id> [reason]
+        [[ -z "$3" ]] && { echo "Usage: $0 block <card_id> <reason> | $0 block <card_id> --card <blocker_card_id> [reason]" >&2; exit 1; }
+        if [[ "$3" == "--card" ]]; then
+            [[ -z "$4" ]] && { echo "Usage: $0 block <card_id> --card <blocker_card_id> [reason]" >&2; exit 1; }
+            # jq для безопасного экранирования (как в create/comment)
+            json_body=$(jq -n --argjson bc "$4" --arg reason "${5:-}" \
+                '{blocker_card_id: $bc} | if $reason != "" then . + {reason: $reason} else . end')
+        else
+            json_body=$(jq -n --arg reason "$3" '{reason: $reason}')
+        fi
+        kaiten POST "/cards/$2/blockers" "$json_body"
+        ;;
+    unblock)
+        [[ -z "$3" ]] && { echo "Usage: $0 unblock <card_id> <blocker_id>" >&2; exit 1; }
+        kaiten DELETE "/cards/$2/blockers/$3"
         ;;
     checklist)
         # Use jq for safe JSON escaping
