@@ -197,6 +197,7 @@ case "${1:-help}" in
         [[ -z "$3" ]] && { echo "Usage: $0 block <card_id> <reason> | $0 block <card_id> --card <blocker_card_id> [reason]" >&2; exit 1; }
         if [[ "$3" == "--card" ]]; then
             [[ -z "$4" ]] && { echo "Usage: $0 block <card_id> --card <blocker_card_id> [reason]" >&2; exit 1; }
+            [[ "$4" =~ ^[0-9]+$ ]] || { echo "Error: blocker_card_id must be numeric, got '$4'" >&2; exit 1; }
             # jq для безопасного экранирования (как в create/comment)
             json_body=$(jq -n --argjson bc "$4" --arg reason "${5:-}" \
                 '{blocker_card_id: $bc} | if $reason != "" then . + {reason: $reason} else . end')
@@ -207,6 +208,7 @@ case "${1:-help}" in
         ;;
     unblock)
         [[ -z "$3" ]] && { echo "Usage: $0 unblock <card_id> <blocker_id>" >&2; exit 1; }
+        [[ "$3" =~ ^[0-9]+$ ]] || { echo "Error: blocker_id must be numeric, got '$3'" >&2; exit 1; }
         kaiten DELETE "/cards/$2/blockers/$3"
         ;;
     checklist)
