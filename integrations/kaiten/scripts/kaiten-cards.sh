@@ -171,7 +171,14 @@ case "${1:-help}" in
         kaiten GET "/cards/$2/comments"
         ;;
     assign)
-        kaiten POST "/cards/$2/members" "{\"user_id\": $3, \"type\": 1}"
+        [[ -z "$2" || -z "$3" ]] && { echo "Usage: $0 assign <card_id> <user_id>" >&2; exit 1; }
+        # «Ответственный» в Kaiten — участник карточки с type 2 (type 1 — обычный участник; именно
+        # type 2 попадает в фильтр responsible_ids). POST /members создаёт членство и ИГНОРИРУЕТ
+        # переданный type — роль поднимает только PATCH. Поэтому делаем оба шага, идемпотентно:
+        # POST может вернуть ошибку «уже участник» (членство уже есть) — глушим её и всё равно
+        # выставляем роль через PATCH; реальную проблему (нет карточки/прав) вскроет уже PATCH.
+        kaiten POST "/cards/$2/members" "{\"user_id\": $3}" >/dev/null 2>&1 || true
+        kaiten PATCH "/cards/$2/members/$3" "{\"type\": 2}"
         ;;
     unassign)
         [[ -z "$2" || -z "$3" ]] && { echo "Usage: $0 unassign <card_id> <member_id>" >&2; exit 1; }
