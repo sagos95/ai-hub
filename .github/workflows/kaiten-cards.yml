@@ -15,6 +15,10 @@ on:
       - main
   workflow_dispatch:
 
+# Гейт только читает репозиторий (checkout + локальный скрипт) — запись не нужна.
+permissions:
+  contents: read
+
 jobs:
   kaiten-cards:
     runs-on: ubuntu-latest
