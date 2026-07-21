@@ -22,6 +22,8 @@
 #   insert-blocks-before <page_id> <before_block_id> <json_blocks> — вставить блоки перед конкретным блоком
 #                                                        (block_id берётся из поля "uuid" в выводе get-blocks)
 #   append-text <page_id> <text>                       — добавить текстовый параграф
+#   append-image <page_id> <image_file> [caption]      — загрузить картинку в S3 Buildin и добавить image-блок
+#                                                        (JPEG: размеры из SOF, EXIF Orientation не учитывается)
 #   delete-block <block_id> <parent_id>                — удалить блок
 
 set -e
@@ -607,6 +609,117 @@ print(json.dumps(blocks))
         bash "$SCRIPT_DIR/buildin-pages.sh" append-blocks "$PAGE_ID" "$BLOCKS"
         ;;
 
+    append-image)
+        PAGE_ID=$(parse_id "$1")
+        FILE="$2"
+        CAPTION="${3:-}"
+        [[ -z "$PAGE_ID" || -z "$FILE" ]] && { echo "Usage: append-image <page_id|url> <image_file> [caption]" >&2; exit 1; }
+        [[ ! -f "$FILE" ]] && { echo "Error: file not found: $FILE" >&2; exit 1; }
+
+        # Метаданные файла считаем заранее: size+sha256 нужны getS3FileUploadInfo,
+        # width/height — image-блоку (без них Buildin не может посчитать layout).
+        META=$(python3 -c "
+import hashlib, json, os, struct, sys
+
+data = open(sys.argv[1], 'rb').read()
+
+def dimensions(b):
+    if b[:8] == b'\x89PNG\r\n\x1a\n':
+        w, h = struct.unpack('>II', b[16:24])
+        return w, h, 'png', 'image/png'
+    if b[:6] in (b'GIF87a', b'GIF89a'):
+        w, h = struct.unpack('<HH', b[6:10])
+        return w, h, 'gif', 'image/gif'
+    # JPEG: размеры из SOF-маркера как есть; EXIF Orientation не учитывается —
+    # портретное фото с повёрнутой матрицей получит перепутанные width/height.
+    if b[:2] == b'\xff\xd8':
+        i = 2
+        while i < len(b) - 9:
+            if b[i] != 0xFF:
+                i += 1
+                continue
+            marker = b[i + 1]
+            if 0xC0 <= marker <= 0xCF and marker not in (0xC4, 0xC8, 0xCC):
+                h, w = struct.unpack('>HH', b[i + 5:i + 9])
+                return w, h, 'jpg', 'image/jpeg'
+            i += 2 + struct.unpack('>H', b[i + 2:i + 4])[0]
+        raise SystemExit('jpeg: SOF marker not found')
+    if b[:4] == b'RIFF' and b[8:12] == b'WEBP':
+        if b[12:16] == b'VP8X':
+            return (int.from_bytes(b[24:27], 'little') + 1,
+                    int.from_bytes(b[27:30], 'little') + 1, 'webp', 'image/webp')
+        if b[12:16] == b'VP8 ':
+            w, h = struct.unpack('<HH', b[26:30])
+            return w & 0x3FFF, h & 0x3FFF, 'webp', 'image/webp'
+        if b[12:16] == b'VP8L':
+            bits = int.from_bytes(b[21:25], 'little')
+            return (bits & 0x3FFF) + 1, ((bits >> 14) & 0x3FFF) + 1, 'webp', 'image/webp'
+        raise SystemExit('webp: unsupported variant')
+    raise SystemExit('unsupported image format (png/jpg/gif/webp)')
+
+w, h, ext, mime = dimensions(data)
+print(json.dumps({
+    'fileName': os.path.basename(sys.argv[1]),
+    'size': len(data),
+    'sha256': hashlib.sha256(data).hexdigest(),
+    'width': w, 'height': h, 'extName': ext, 'mimeType': mime,
+}))
+" "$FILE") || exit 1
+
+        SPACE_ID=$(get_space_id "$PAGE_ID")
+        [[ -z "$SPACE_ID" ]] && { echo "Error: cannot resolve spaceId for $PAGE_ID" >&2; exit 1; }
+
+        # Дедуп как в родном клиенте: перед аплоадом ищем файл по sha256+size и
+        # переиспользуем существующий ossName. Проверка оппортунистическая — в наших
+        # пробах ответ был пуст даже для заведомых дублей; пусто -> грузим как обычно.
+        S3_KEY=$(buildin POST "/api/search/resource" "$(python3 -c "
+import json, sys
+meta = json.loads(sys.argv[1])
+print(json.dumps({'spaceId': sys.argv[2], 'sha256': meta['sha256'], 'size': meta['size']}))
+" "$META" "$SPACE_ID")" | python3 -c "import sys, json; print((json.load(sys.stdin).get('data') or {}).get('ossName') or '')" 2>/dev/null) || S3_KEY=""
+
+        if [[ -z "$S3_KEY" ]]; then
+            UPLOAD_BODY=$(python3 -c "
+import json, sys
+meta = json.loads(sys.argv[1])
+print(json.dumps({'spaceId': sys.argv[2], 'type': 'file',
+                  'mimeType': meta['mimeType'], 'fileName': meta['fileName'],
+                  'size': meta['size'], 'sha256': meta['sha256']}))
+" "$META" "$SPACE_ID")
+            UPLOAD_INFO=$(buildin POST "/api/upload/getS3FileUploadInfo" "$UPLOAD_BODY")
+            S3_KEY=$(echo "$UPLOAD_INFO" | python3 -c "import sys,json; print(json.load(sys.stdin).get('data',{}).get('s3Key',''))")
+            UPLOAD_URL=$(echo "$UPLOAD_INFO" | python3 -c "import sys,json; print(json.load(sys.stdin).get('data',{}).get('uploadUrl',''))")
+            # В stderr не печатаем весь ответ: в нём presigned URL (живёт 2 часа) — нечего
+            # ему делать в логах/контексте LLM. Только code/msg.
+            [[ -z "$S3_KEY" || -z "$UPLOAD_URL" ]] && { echo "Error: getS3FileUploadInfo failed: $(echo "$UPLOAD_INFO" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('code'), d.get('msg') or '')" 2>/dev/null)" >&2; exit 1; }
+
+            # Content-Type подписан в presigned URL (SignedHeaders=content-type;host) —
+            # без этого заголовка S3 отвечает 403 SignatureDoesNotMatch.
+            MIME=$(echo "$META" | python3 -c "import sys,json; print(json.load(sys.stdin)['mimeType'])")
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X PUT -H "Content-Type: $MIME" --data-binary @"$FILE" "$UPLOAD_URL")
+            [[ "$HTTP_CODE" != "200" ]] && { echo "Error: S3 upload failed (HTTP $HTTP_CODE)" >&2; exit 1; }
+        fi
+
+        BLOCKS=$(python3 -c "
+import json, sys
+meta = json.loads(sys.argv[1])
+# Схема родного клиента: в segments — имя файла, подпись — отдельным data.caption
+# (текст из segments UI у image-блока не отображает).
+data = {
+    'segments': [{'type': 0, 'text': meta['fileName'], 'enhancer': {}}],
+    'display': 'image', 'ossName': sys.argv[2],
+    'width': meta['width'], 'height': meta['height'],
+    'size': meta['size'], 'extName': meta['extName'],
+}
+if len(sys.argv) > 3 and sys.argv[3]:
+    data['caption'] = [{'type': 0, 'text': sys.argv[3], 'enhancer': {}}]
+print(json.dumps([{'type': 14, 'data': data}]))
+" "$META" "$S3_KEY" "$CAPTION")
+
+        bash "$SCRIPT_DIR/buildin-pages.sh" append-blocks "$PAGE_ID" "$BLOCKS"
+        echo "ossName: $S3_KEY"
+        ;;
+
     delete-block)
         BLOCK_ID=$(parse_id "$1")
         [[ -z "$BLOCK_ID" ]] && { echo "Usage: delete-block <block_id>" >&2; exit 1; }
@@ -654,6 +767,7 @@ print(json.dumps(ops))
         echo "  insert-blocks-after <id|url> <after_block_id> <json_blocks>   — вставить блоки после блока"
         echo "  insert-blocks-before <id|url> <before_block_id> <json_blocks> — вставить блоки перед блоком"
         echo "  append-text <id|url> <text>              — добавить текстовый параграф"
+        echo "  append-image <id|url> <image_file> [caption] — загрузить картинку (png/jpg/gif/webp) и добавить image-блок"
         echo "  delete-block <block_id> [parent_id]      — удалить блок"
         ;;
 esac
