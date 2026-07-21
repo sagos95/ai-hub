@@ -21,6 +21,7 @@
 #                                                        (block_id берётся из поля "uuid" в выводе get-blocks)
 #   append-text <page_id> <text>                       — добавить текстовый параграф
 #   append-image <page_id> <image_file> [caption]      — загрузить картинку в S3 Buildin и добавить image-блок
+#                                                        (JPEG: размеры из SOF, EXIF Orientation не учитывается)
 #   delete-block <block_id> <parent_id>                — удалить блок
 
 set -e
@@ -534,6 +535,8 @@ def dimensions(b):
     if b[:6] in (b'GIF87a', b'GIF89a'):
         w, h = struct.unpack('<HH', b[6:10])
         return w, h, 'gif', 'image/gif'
+    # JPEG: размеры из SOF-маркера как есть; EXIF Orientation не учитывается —
+    # портретное фото с повёрнутой матрицей получит перепутанные width/height.
     if b[:2] == b'\xff\xd8':
         i = 2
         while i < len(b) - 9:
@@ -571,34 +574,51 @@ print(json.dumps({
         SPACE_ID=$(get_space_id "$PAGE_ID")
         [[ -z "$SPACE_ID" ]] && { echo "Error: cannot resolve spaceId for $PAGE_ID" >&2; exit 1; }
 
-        UPLOAD_BODY=$(python3 -c "
+        # Дедуп как в родном клиенте: перед аплоадом ищем файл по sha256+size и
+        # переиспользуем существующий ossName. Проверка оппортунистическая — в наших
+        # пробах ответ был пуст даже для заведомых дублей; пусто -> грузим как обычно.
+        S3_KEY=$(buildin POST "/api/search/resource" "$(python3 -c "
+import json, sys
+meta = json.loads(sys.argv[1])
+print(json.dumps({'spaceId': sys.argv[2], 'sha256': meta['sha256'], 'size': meta['size']}))
+" "$META" "$SPACE_ID")" | python3 -c "import sys, json; print((json.load(sys.stdin).get('data') or {}).get('ossName') or '')" 2>/dev/null) || S3_KEY=""
+
+        if [[ -z "$S3_KEY" ]]; then
+            UPLOAD_BODY=$(python3 -c "
 import json, sys
 meta = json.loads(sys.argv[1])
 print(json.dumps({'spaceId': sys.argv[2], 'type': 'file',
                   'mimeType': meta['mimeType'], 'fileName': meta['fileName'],
                   'size': meta['size'], 'sha256': meta['sha256']}))
 " "$META" "$SPACE_ID")
-        UPLOAD_INFO=$(buildin POST "/api/upload/getS3FileUploadInfo" "$UPLOAD_BODY")
-        S3_KEY=$(echo "$UPLOAD_INFO" | python3 -c "import sys,json; print(json.load(sys.stdin).get('data',{}).get('s3Key',''))")
-        UPLOAD_URL=$(echo "$UPLOAD_INFO" | python3 -c "import sys,json; print(json.load(sys.stdin).get('data',{}).get('uploadUrl',''))")
-        [[ -z "$S3_KEY" || -z "$UPLOAD_URL" ]] && { echo "Error: getS3FileUploadInfo failed: $UPLOAD_INFO" >&2; exit 1; }
+            UPLOAD_INFO=$(buildin POST "/api/upload/getS3FileUploadInfo" "$UPLOAD_BODY")
+            S3_KEY=$(echo "$UPLOAD_INFO" | python3 -c "import sys,json; print(json.load(sys.stdin).get('data',{}).get('s3Key',''))")
+            UPLOAD_URL=$(echo "$UPLOAD_INFO" | python3 -c "import sys,json; print(json.load(sys.stdin).get('data',{}).get('uploadUrl',''))")
+            # В stderr не печатаем весь ответ: в нём presigned URL (живёт 2 часа) — нечего
+            # ему делать в логах/контексте LLM. Только code/msg.
+            [[ -z "$S3_KEY" || -z "$UPLOAD_URL" ]] && { echo "Error: getS3FileUploadInfo failed: $(echo "$UPLOAD_INFO" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('code'), d.get('msg') or '')" 2>/dev/null)" >&2; exit 1; }
 
-        # Content-Type подписан в presigned URL (SignedHeaders=content-type;host) —
-        # без этого заголовка S3 отвечает 403 SignatureDoesNotMatch.
-        MIME=$(echo "$META" | python3 -c "import sys,json; print(json.load(sys.stdin)['mimeType'])")
-        HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X PUT -H "Content-Type: $MIME" --data-binary @"$FILE" "$UPLOAD_URL")
-        [[ "$HTTP_CODE" != "200" ]] && { echo "Error: S3 upload failed (HTTP $HTTP_CODE)" >&2; exit 1; }
+            # Content-Type подписан в presigned URL (SignedHeaders=content-type;host) —
+            # без этого заголовка S3 отвечает 403 SignatureDoesNotMatch.
+            MIME=$(echo "$META" | python3 -c "import sys,json; print(json.load(sys.stdin)['mimeType'])")
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X PUT -H "Content-Type: $MIME" --data-binary @"$FILE" "$UPLOAD_URL")
+            [[ "$HTTP_CODE" != "200" ]] && { echo "Error: S3 upload failed (HTTP $HTTP_CODE)" >&2; exit 1; }
+        fi
 
         BLOCKS=$(python3 -c "
 import json, sys
 meta = json.loads(sys.argv[1])
-caption = sys.argv[3] if len(sys.argv) > 3 and sys.argv[3] else meta['fileName']
-print(json.dumps([{'type': 14, 'data': {
-    'segments': [{'type': 0, 'text': caption, 'enhancer': {}}],
+# Схема родного клиента: в segments — имя файла, подпись — отдельным data.caption
+# (текст из segments UI у image-блока не отображает).
+data = {
+    'segments': [{'type': 0, 'text': meta['fileName'], 'enhancer': {}}],
     'display': 'image', 'ossName': sys.argv[2],
     'width': meta['width'], 'height': meta['height'],
     'size': meta['size'], 'extName': meta['extName'],
-}}]))
+}
+if len(sys.argv) > 3 and sys.argv[3]:
+    data['caption'] = [{'type': 0, 'text': sys.argv[3], 'enhancer': {}}]
+print(json.dumps([{'type': 14, 'data': data}]))
 " "$META" "$S3_KEY" "$CAPTION")
 
         bash "$SCRIPT_DIR/buildin-pages.sh" append-blocks "$PAGE_ID" "$BLOCKS"
