@@ -297,15 +297,15 @@ print(json.dumps(result, indent=2, ensure_ascii=False))
     comments)
         INPUT="$1"
         [[ -z "$INPUT" ]] && { echo "Usage: comments <page_id|url[#block_id]> [block_id]" >&2; exit 1; }
-        # URL с якорем (#block-uuid) указывает на конкретный блок: первый UUID —
-        # страница, последний — блок. parse_id вернул бы последний, т.е. блок.
+        # Полный URL — buildin.ai/<space>/<page>: страница — последний UUID до «#»
+        # (как в parse_id), блок — из якоря после «#».
         UUID_RE='[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
-        PAGE_ID=$(echo "$INPUT" | grep -oE "$UUID_RE" | head -1 || true)
+        BASE="${INPUT%%#*}"
+        PAGE_ID=$(echo "$BASE" | grep -oE "$UUID_RE" | tail -1 || true)
         [[ -z "$PAGE_ID" ]] && { echo "Error: no UUID found in '$INPUT'" >&2; exit 1; }
         BLOCK_ID="${2:-}"
         if [[ -z "$BLOCK_ID" && "$INPUT" == *"#"* ]]; then
-            BLOCK_ID=$(echo "$INPUT" | grep -oE "$UUID_RE" | tail -1)
-            [[ "$BLOCK_ID" == "$PAGE_ID" ]] && BLOCK_ID=""
+            BLOCK_ID=$(echo "${INPUT#*#}" | grep -oE "$UUID_RE" | head -1 || true)
         fi
 
         DOC_FILE=$(mktemp)
