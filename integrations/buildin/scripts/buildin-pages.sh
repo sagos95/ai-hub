@@ -14,6 +14,8 @@
 #   update <page_id> <title>               — обновить заголовок страницы
 #   archive <page_id>                      — архивировать страницу (status: -1)
 #   get-blocks <page_id>                   — получить блоки страницы (JSON)
+#   comments <page_id|url[#block_id]> [block_id] — комментарии страницы или конкретного блока
+#                                                  (URL с якорем #block-uuid фильтрует по блоку)
 #   append-blocks <page_id> <json_blocks>              — добавить блоки на страницу (transaction)
 #                                                        блоки могут иметь "children" (таблицы/toggle/вложенные списки)
 #   insert-blocks-after <page_id> <after_block_id> <json_blocks>   — вставить блоки после конкретного блока
@@ -292,6 +294,99 @@ for sid in sub_nodes:
         result.append(blocks[sid])
 print(json.dumps(result, indent=2, ensure_ascii=False))
 " "$PAGE_ID"
+        ;;
+
+    comments)
+        INPUT="$1"
+        [[ -z "$INPUT" ]] && { echo "Usage: comments <page_id|url[#block_id]> [block_id]" >&2; exit 1; }
+        # Полный URL — buildin.ai/<space>/<page>: страница — последний UUID до «#»
+        # (как в parse_id), блок — из якоря после «#».
+        UUID_RE='[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+        BASE="${INPUT%%#*}"
+        PAGE_ID=$(echo "$BASE" | grep -oE "$UUID_RE" | tail -1 || true)
+        [[ -z "$PAGE_ID" ]] && { echo "Error: no UUID found in '$INPUT'" >&2; exit 1; }
+        BLOCK_ID="${2:-}"
+        if [[ -z "$BLOCK_ID" && "$INPUT" == *"#"* ]]; then
+            BLOCK_ID=$(echo "${INPUT#*#}" | grep -oE "$UUID_RE" | head -1 || true)
+        fi
+
+        DOC_FILE=$(mktemp)
+        MEMBERS_FILE=$(mktemp)
+        trap 'rm -f "$DOC_FILE" "$MEMBERS_FILE"' EXIT
+
+        buildin GET "/api/docs/$PAGE_ID" > "$DOC_FILE"
+        SPACE_ID=$(python3 -c "
+import json, sys
+data = json.load(open(sys.argv[1])).get('data', {})
+blocks = data.get('blocks', {})
+print(next(iter(blocks.values()), {}).get('spaceId', ''))
+" "$DOC_FILE")
+        # Участники нужны для имён авторов и @-упоминаний; без доступа — покажем UUID
+        if [[ -n "$SPACE_ID" ]]; then
+            buildin GET "/api/spaces/$SPACE_ID/members" > "$MEMBERS_FILE" 2>/dev/null || echo '{}' > "$MEMBERS_FILE"
+        else
+            echo '{}' > "$MEMBERS_FILE"
+        fi
+
+        python3 -c "
+import json, sys
+from datetime import datetime
+
+doc_file, members_file, page_id, block_id = sys.argv[1:5]
+data = json.load(open(doc_file)).get('data', {})
+blocks = data.get('blocks', {})
+discussions = data.get('discussions', {})
+comments = data.get('comments', {})
+
+try:
+    members = json.load(open(members_file)).get('data', []) or []
+except Exception:
+    members = []
+users = {m['user']['uuid']: m['user'].get('nickname') or m['user'].get('email', '') for m in members if m.get('user')}
+
+def name(uuid):
+    return users.get(uuid, uuid[:8] if uuid else '?')
+
+def rt(segments):
+    # type 7 — @-упоминание человека: text пустой, uuid = user uuid
+    parts = []
+    for s in (segments or []):
+        if s.get('type') == 7:
+            # пробел после упоминания: следующий сегмент часто начинается сразу с текста
+            parts.append('@' + name(s.get('uuid', '')) + ' ')
+        else:
+            parts.append(s.get('text', ''))
+    return ''.join(parts).strip()
+
+def ts(ms):
+    return datetime.fromtimestamp(ms / 1000).strftime('%Y-%m-%d %H:%M') if ms else '?'
+
+found = 0
+for did, disc in discussions.items():
+    parent = disc.get('parentId', '')
+    if block_id and parent != block_id:
+        continue
+    block = blocks.get(parent, {})
+    block_title = block.get('title') or rt(block.get('data', {}).get('segments'))
+    context = rt(disc.get('context'))
+    status = 'resolved' if disc.get('resolved') else 'open'
+    found += 1
+    print(f'## Блок {parent}')
+    if block_title:
+        print(f'Текст блока: {block_title}')
+    if context and context != block_title:
+        print(f'Выделено: «{context}»')
+    print(f'Тред {did} [{status}]:')
+    for cid in disc.get('comments', []):
+        c = comments.get(cid, {})
+        body = rt(c.get('text')) or '(без текста)'
+        print(f'- {name(c.get(\"createdBy\", \"\"))} ({ts(c.get(\"createdAt\"))}): {body}')
+    print()
+
+if not found:
+    where = f'блока {block_id}' if block_id else f'страницы {page_id}'
+    print(f'Комментариев у {where} нет.')
+" "$DOC_FILE" "$MEMBERS_FILE" "$PAGE_ID" "$BLOCK_ID"
         ;;
 
     read)
@@ -667,6 +762,7 @@ print(json.dumps(ops))
         echo "  update <id|url> <title>                  — обновить заголовок"
         echo "  archive <id|url>                         — архивировать (status: -1)"
         echo "  get-blocks <id|url>                      — блоки страницы (JSON; id блока в поле uuid)"
+        echo "  comments <id|url[#block_id]> [block_id]  — комментарии страницы или блока (якорь #block-uuid фильтрует)"
         echo "  append-blocks <id|url> <json_blocks>     — добавить блоки в конец страницы"
         echo "  insert-blocks-after <id|url> <after_block_id> <json_blocks>   — вставить блоки после блока"
         echo "  insert-blocks-before <id|url> <before_block_id> <json_blocks> — вставить блоки перед блоком"
